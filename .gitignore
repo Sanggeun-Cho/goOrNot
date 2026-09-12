@@ -39,3 +39,5 @@ out/
 ### Secrets — DB 접속정보/JWT 시크릿이 담기는 설정 파일은 커밋하지 않는다 ###
 application.yml
 application.properties
+
+./.claude

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/base :: head('회원가입', 'auth')}"></head>
+
+<body data-auth="pending">
+
+<div class="app">
+    <header th:replace="~{layout/base :: header}"></header>
+
+    <main class="app__main">
+        <section class="auth">
+            <div class="auth__head">
+                <h1 class="auth__title">회원가입</h1>
+                <p class="auth__desc">30초면 끝나요</p>
+            </div>
+
+            <div class="auth__card">
+                <form class="form" id="signup-form" novalidate>
+                    <div class="field">
+                        <label class="field__label" for="username">아이디<span class="req">*</span></label>
+                        <input class="field__input" type="text" id="username" name="username"
+                               autocomplete="username" placeholder="4~20자" minlength="4" maxlength="20" required>
+                        <p class="field__error"></p>
+                    </div>
+
+                    <div class="field">
+                        <label class="field__label" for="password">비밀번호<span class="req">*</span></label>
+                        <input class="field__input" type="password" id="password" name="password"
+                               autocomplete="new-password" placeholder="8자 이상" minlength="8" required>
+                        <p class="field__error"></p>
+                    </div>
+
+                    <div class="field">
+                        <label class="field__label" for="passwordConfirm">비밀번호 확인<span class="req">*</span></label>
+                        <input class="field__input" type="password" id="passwordConfirm" name="passwordConfirm"
+                               autocomplete="new-password" placeholder="비밀번호를 한 번 더 입력하세요" required>
+                        <p class="field__error"></p>
+                    </div>
+
+                    <div class="field">
+                        <label class="field__label" for="email">이메일<span class="req">*</span></label>
+                        <input class="field__input" type="email" id="email" name="email"
+                               autocomplete="email" placeholder="you@example.com" required>
+                        <p class="field__error"></p>
+                    </div>
+
+                    <p class="form__divider">선택 입력</p>
+
+                    <div class="field">
+                        <label class="field__label" for="name">이름</label>
+                        <input class="field__input" type="text" id="name" name="name"
+                               autocomplete="name" placeholder="실명">
+                        <p class="field__error"></p>
+                    </div>
+
+                    <div class="field">
+                        <label class="field__label" for="phone">휴대폰</label>
+                        <input class="field__input" type="tel" id="phone" name="phone"
+                               autocomplete="tel" placeholder="010-0000-0000">
+                        <p class="field__error"></p>
+                    </div>
+
+                    <div class="field">
+                        <label class="field__label" for="birth">생년월일</label>
+                        <input class="field__input" type="date" id="birth" name="birth">
+                        <p class="field__error"></p>
+                    </div>
+
+                    <button class="btn btn--primary btn--block auth__submit" type="submit">가입하기</button>
+                </form>
+            </div>
+
+            <p class="link-row">
+                이미 계정이 있으신가요?
+                <a th:href="@{/user/login}">로그인</a>
+            </p>
+        </section>
+    </main>
+
+    <footer th:replace="~{layout/base :: footer}"></footer>
+</div>
+
+<script type="module" th:src="@{/js/page/signup.js}"></script>
+
+</body>
+</html>

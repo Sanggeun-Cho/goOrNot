@@ -1,0 +1,110 @@
+/* =========================================================
+ * mypage.css
+ * 마이페이지 (내 정보 조회 · 수정 · 탈퇴)
+ * ========================================================= */
+
+/* ── 프로필 요약 ─────────────────────────────────────── */
+.profile {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin-bottom: var(--space-5);
+}
+
+.profile__avatar {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--color-primary);
+    background: var(--color-primary-soft);
+    border-radius: var(--radius-full);
+}
+
+.profile__name {
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: -.02em;
+}
+
+.profile__meta {
+    font-size: .8rem;
+    color: var(--color-text-muted);
+}
+
+/* ── 읽기 전용 정보 리스트 ───────────────────────────── */
+.info-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.info-list__row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-4);
+    padding: var(--space-3) 0;
+    border-top: 1px solid var(--color-border);
+}
+
+.info-list__row:first-child { border-top: 0; }
+
+.info-list__label {
+    width: 76px;
+    flex-shrink: 0;
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+}
+
+.info-list__value {
+    flex: 1;
+    font-size: .9rem;
+    word-break: break-all;
+}
+
+.info-list__value:empty::after,
+.info-list__value[data-empty="true"]::after {
+    content: '미등록';
+    color: var(--color-text-subtle);
+}
+
+/* ── 조회 / 수정 모드 전환 ───────────────────────────── */
+[data-mode-view], [data-mode-edit] { display: none; }
+.card[data-mode="view"] [data-mode-view] { display: block; }
+.card[data-mode="edit"] [data-mode-edit] { display: block; }
+
+.card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+.card__head .card__title { margin-bottom: 0; }
+
+/* 버튼 두 개를 나란히 */
+.btn-row {
+    display: flex;
+    gap: var(--space-3);
+    margin-top: var(--space-5);
+}
+
+.btn-row .btn { flex: 1; }
+
+/* ── 위험 구역 (탈퇴) ────────────────────────────────── */
+.danger-zone {
+    border-color: var(--color-danger-soft);
+}
+
+.danger-zone .card__title { color: var(--color-danger); }
+
+.danger-zone__desc {
+    margin-bottom: var(--space-4);
+    font-size: .82rem;
+    line-height: 1.6;
+    color: var(--color-text-muted);
+}

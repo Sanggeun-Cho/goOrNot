@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/base :: head('시작하기', 'auth')}"></head>
+
+<!--/* data-auth 는 index.js 가 세션을 확인한 뒤 in/out 으로 바꾼다 */-->
+<body data-auth="pending">
+
+<div class="app">
+    <header th:replace="~{layout/base :: header}"></header>
+
+    <main class="app__main">
+        <section class="hero">
+            <span class="hero__badge">오버투어리즘 우회 여행</span>
+
+            <h1 class="hero__title">
+                어디 갈지 고민하지 말고,<br>
+                일단 <em>던져</em>보세요
+            </h1>
+
+            <p class="hero__desc">
+                지도에 핀을 던져 지역을 정하고,<br>
+                그 안에서 숨은 장소를 발견하는 즉흥 여행
+            </p>
+
+            <div class="hero__actions">
+                <!--/* 로그인 안 한 사용자 */-->
+                <a data-guest-only class="btn btn--primary btn--block" th:href="@{/user/signup}">회원가입</a>
+                <a data-guest-only class="btn btn--ghost btn--block" th:href="@{/user/login}">로그인</a>
+
+                <!--/* 이미 로그인한 사용자 */-->
+                <a data-auth-only class="btn btn--primary btn--block" th:href="@{/user/mypage}">마이페이지</a>
+            </div>
+        </section>
+    </main>
+
+    <footer th:replace="~{layout/base :: footer}"></footer>
+</div>
+
+<script type="module" th:src="@{/js/page/index.js}"></script>
+
+</body>
+</html>
