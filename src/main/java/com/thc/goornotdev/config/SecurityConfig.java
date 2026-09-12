@@ -66,6 +66,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/login", "/api/auth").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/user").permitAll()
+                        // 로그인 전에도 던지기가 가능해야 하므로 익명 요청을 허용한다.
+                        // 실제 접근 제어는 서비스 계층의 소유권 검증(userId 또는 deviceId 일치)이 담당한다.
+                        // 장소 저장(SavedPlace)은 로그인 필수라 여기에 넣지 않는다
+                        .requestMatchers("/api/throw-session/**", "/api/throw-round/**").permitAll()
                         // 정적 리소스는 인증 대상이 아니다
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
                         // 화면은 모두 열어두고, 로그인 필요 여부는 프론트 가드와 API 권한으로 판단한다

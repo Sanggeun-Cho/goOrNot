@@ -140,6 +140,10 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public List<UserDto.DetailResDto> list(UserDto.ListReqDto param, Long reqUserId) {
+        // 클라이언트가 보낸 소유자 조건은 신뢰하지 않는다.
+        // 요청자 ID 로 덮어써 SQL 단계에서 본인 것만 조회되도록 강제한다
+        param.setUserId(reqUserId);
+
         return addList(userMapper.list(param), reqUserId);
     }
 }

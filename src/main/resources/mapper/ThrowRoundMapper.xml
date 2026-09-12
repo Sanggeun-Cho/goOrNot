@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.thc.goornotdev.mapper.ThrowRoundMapper">
+
+    <!-- 목록 조회 공통 조건 -->
+    <sql id="listWhere">
+        <where>
+            <choose>
+                <when test="deleted != null">
+                    AND r.deleted = #{deleted}
+                </when>
+                <otherwise>
+                    AND r.deleted = false
+                </otherwise>
+            </choose>
+
+            <!--
+                회차는 항상 특정 세션 안에서만 조회한다.
+                세션이 비어 있으면 소유권 검증 기준이 없으므로 아무것도 조회되지 않게 막는다.
+            -->
+            <choose>
+                <when test="throwSessionId != null">
+                    AND r.throw_session_id = #{throwSessionId}
+                </when>
+                <otherwise>
+                    AND 1 = 0
+                </otherwise>
+            </choose>
+
+            <if test="choice != null">
+                AND r.choice = #{choice}
+            </if>
+        </where>
+    </sql>
+
+    <!-- 상세 조회. 소유권 검증은 서비스에서 세션을 통해 한다 -->
+    <select id="detail" parameterType="java.lang.Long"
+            resultType="com.thc.goornotdev.DTO.ThrowRoundDto$DetailResDto">
+        SELECT r.id,
+               r.deleted,
+               r.created_at,
+               r.modified_at,
+               r.throw_session_id,
+               r.round_no,
+               r.region_code,
+               r.lat,
+               r.lng,
+               r.choice
+        FROM throw_round r
+        WHERE r.id = #{id}
+          AND r.deleted = false
+    </select>
+
+    <!-- 목록 조회는 id 만 조회하고 상세는 서비스에서 채운다 -->
+    <select id="list" parameterType="com.thc.goornotdev.DTO.ThrowRoundDto$ListReqDto"
+            resultType="com.thc.goornotdev.DTO.ThrowRoundDto$DetailResDto">
+        SELECT r.id
+        FROM throw_round r
+        <include refid="listWhere"/>
+        ORDER BY r.round_no ASC
+    </select>
+
+    <!--
+        같은 세션에서 이미 뽑힌 좌표 목록.
+        choice 로 거르지 않는다. GO 가 나오면 세션이 끝나므로 '이전 회차 = 다시 던진 회차'이고,
+        혹시 남아 있더라도 이미 본 지역을 또 보여줄 이유가 없다.
+    -->
+    <select id="excludedCoordinates" parameterType="java.lang.Long"
+            resultType="com.thc.goornotdev.DTO.ThrowRoundDto$CoordinateResDto">
+        SELECT r.region_code,
+               r.lat,
+               r.lng
+        FROM throw_round r
+        WHERE r.throw_session_id = #{throwSessionId}
+          AND r.deleted = false
+        ORDER BY r.round_no ASC
+    </select>
+
+</mapper>

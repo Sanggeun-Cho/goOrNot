@@ -88,6 +88,12 @@ public class UserDto {
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
     public static class ListReqDto extends DefaultDto.ListReqDto {
         /**
+         * 조회 대상 사용자 ID.
+         * 클라이언트가 보낸 값은 쓰지 않는다. 서비스에서 요청자 ID 로 덮어써 본인 것만 조회되도록 강제한다.
+         */
+        Long userId;
+
+        /**
          * 검색 조건 : 사용자 이름 (중간 글자 검색 가능)
          */
         String name;

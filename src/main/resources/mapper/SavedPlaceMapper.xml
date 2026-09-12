@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.thc.goornotdev.mapper.SavedPlaceMapper">
+
+    <!-- 목록 조회 공통 조건 -->
+    <sql id="listWhere">
+        <where>
+            <choose>
+                <when test="deleted != null">
+                    AND p.deleted = #{deleted}
+                </when>
+                <otherwise>
+                    AND p.deleted = false
+                </otherwise>
+            </choose>
+
+            <!--
+                소유자 조건. 서비스에서 요청자 ID 로 덮어쓴 값이 들어온다.
+                저장 장소는 로그인 필수라 userId 가 비면 아무것도 조회되지 않게 막는다.
+            -->
+            <choose>
+                <when test="userId != null">
+                    AND p.user_id = #{userId}
+                </when>
+                <otherwise>
+                    AND 1 = 0
+                </otherwise>
+            </choose>
+
+            <!-- 있으면 세션 상세용, 없으면 마이페이지용 전체 목록 -->
+            <if test="throwSessionId != null">
+                AND p.throw_session_id = #{throwSessionId}
+            </if>
+            <if test="category != null and category != ''">
+                AND p.category = #{category}
+            </if>
+        </where>
+    </sql>
+
+    <!-- 상세 조회. 소유권 검증은 서비스에서 한다 -->
+    <select id="detail" parameterType="java.lang.Long"
+            resultType="com.thc.goornotdev.DTO.SavedPlaceDto$DetailResDto">
+        SELECT p.id,
+               p.deleted,
+               p.created_at,
+               p.modified_at,
+               p.user_id,
+               p.throw_session_id,
+               p.content_id,
+               p.category,
+               p.place_name,
+               p.address,
+               p.lat,
+               p.lng
+        FROM saved_place p
+        WHERE p.id = #{id}
+          AND p.deleted = false
+    </select>
+
+    <!-- 목록 조회는 id 만 조회하고 상세는 서비스에서 채운다 -->
+    <select id="list" parameterType="com.thc.goornotdev.DTO.SavedPlaceDto$ListReqDto"
+            resultType="com.thc.goornotdev.DTO.SavedPlaceDto$DetailResDto">
+        SELECT p.id
+        FROM saved_place p
+        <include refid="listWhere"/>
+        ORDER BY p.id DESC
+    </select>
+
+</mapper>

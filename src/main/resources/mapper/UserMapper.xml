@@ -13,6 +13,18 @@
                     AND u.deleted = false
                 </otherwise>
             </choose>
+            <!--
+                소유자 조건. 서비스에서 요청자 ID 로 덮어써 넣는다.
+                값이 비면 전체 조회가 되어버리므로 AND 1 = 0 으로 막는다
+            -->
+            <choose>
+                <when test="userId != null">
+                    AND u.id = #{userId}
+                </when>
+                <otherwise>
+                    AND 1 = 0
+                </otherwise>
+            </choose>
             <if test="name != null and name != ''">
                 AND u.name LIKE CONCAT('%', #{name}, '%')
             </if>

@@ -176,6 +176,27 @@ class UserServiceImplTest {
     }
 
     @Test
+    @DisplayName("목록 조회 - 클라이언트가 보낸 userId 를 요청자 ID 로 덮어쓴다")
+    void list_overwritesUserId() {
+        UserDto.ListReqDto param = UserDto.ListReqDto.builder()
+                .userId(999L)   // 남의 것을 보려는 시도
+                .build();
+
+        given(userMapper.list(param)).willReturn(List.of(
+                UserDto.DetailResDto.builder().id(1L).build()));
+        given(userMapper.detail(1L)).willReturn(UserDto.DetailResDto.builder()
+                .id(1L)
+                .username("tester")
+                .build());
+
+        List<UserDto.DetailResDto> result = userService.list(param, 1L);
+
+        assertThat(param.getUserId()).isEqualTo(1L);
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getUsername()).isEqualTo("tester");
+    }
+
+    @Test
     @DisplayName("목록 조회 - 결과에 타인이 섞여 있으면 AccessDeniedException")
     void list_containsOtherUser() {
         UserDto.ListReqDto param = UserDto.ListReqDto.builder().name("조").build();
