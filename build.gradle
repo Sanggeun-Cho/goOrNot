@@ -50,4 +50,21 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+
+    // 외부 API 를 실제로 호출하는 테스트는 전부 기본적으로 꺼둔다.
+    // 쿼터(TourAPI 1,000건/일, 카카오맵 무료 쿼터)를 매 빌드마다 소모하지 않기 위함이다.
+    //   ./gradlew test -Dtourapi.live=true                        TourApiClientLiveTest
+    //   ./gradlew test -Dkakao.live=true                          KakaoLocalClientLiveTest
+    //   ./gradlew test --tests '*RegionSeedRunner' -Dregion.seed=true   regions.json 시딩(1회성)
+    systemProperty 'tourapi.live', System.getProperty('tourapi.live', 'false')
+    systemProperty 'kakao.live', System.getProperty('kakao.live', 'false')
+    systemProperty 'region.seed', System.getProperty('region.seed', 'false')
+    // 기존 regions.json 을 무시하고 처음부터 다시 수집 (큐레이션 기준을 바꿨을 때만)
+    systemProperty 'region.seed.reset', System.getProperty('region.seed.reset', 'false')
+
+    // 시딩 진행 상황을 콘솔에서 봐야 해서 표준 출력을 흘려보낸다
+    testLogging {
+        showStandardStreams = true
+        events 'failed'
+    }
 }

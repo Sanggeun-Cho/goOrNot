@@ -58,6 +58,15 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.FORBIDDEN, e.getMessage());
     }
 
+    /**
+     * 외부 API(TourAPI) 장애는 우리 서버 잘못이 아니므로 500 이 아니라 502 로 구분해 내려준다.
+     * 예외 메시지는 호출부에서 이미 마스킹된 값이라 그대로 노출해도 인증키가 새지 않는다.
+     */
+    @ExceptionHandler(ExternalApiException.class)
+    public ResponseEntity<Map<String, String>> handleExternalApi(ExternalApiException e) {
+        return error(HttpStatus.BAD_GATEWAY, e.getMessage());
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException e) {
         Map<String, String> errors = new HashMap<>();
