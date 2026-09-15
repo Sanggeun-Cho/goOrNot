@@ -46,6 +46,11 @@ dependencies {
     testCompileOnly 'org.projectlombok:lombok'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testAnnotationProcessor 'org.projectlombok:lombok'
+
+    // Swagger 설정.
+    // springdoc 버전 라인은 Spring Boot 세대에 묶여 있다 (1.x=Boot2, 2.x=Boot3, 3.x=Boot4).
+    // 우리는 Boot 4 이므로 3.x 를 써야 한다
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
 }
 
 tasks.named('test') {

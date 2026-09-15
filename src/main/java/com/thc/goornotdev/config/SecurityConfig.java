@@ -78,6 +78,10 @@ public class SecurityConfig {
                         // 아래 anyRequest().authenticated() 에 걸려 로그인해야 쓸 수 있다.
                         // 화면 자체도 external.tourapi.dev-tools=true 일 때만 매핑된다 (제출 전 삭제 대상)
                         .requestMatchers("/dev/**").permitAll()
+                        // Swagger 설정. UI 는 브라우저가 토큰 헤더 없이 요청하므로 문서 경로를 열어야 화면이 뜬다.
+                        // 문서에 잡힌 API 의 실제 호출은 각 엔드포인트의 @PreAuthorize 가 그대로 막는다.
+                        // 배포 시 springdoc.api-docs.enabled=false 로 두면 이 경로 자체가 사라진다
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         // sendError 로 내려가는 응답은 컨테이너가 /error 로 포워딩한다.
                         // 여기를 막아두면 로그인 실패(401)나 잘못된 요청(400)이 전부 403 으로 덮인다
                         .requestMatchers("/error").permitAll()
