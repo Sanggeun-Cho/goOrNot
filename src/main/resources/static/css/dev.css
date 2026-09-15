@@ -1,0 +1,289 @@
+/* =========================================================
+ * dev.css
+ * TourAPI 연동 점검용 임시 화면 전용. 제출 전에 삭제한다.
+ * ========================================================= */
+
+/* 점검 화면은 표·원본 JSON 을 봐야 해서 본문 폭을 넓힌다 */
+.app__main--wide { max-width: 760px; }
+
+/* ── 체크리스트 ──────────────────────────────────────── */
+.check { display: flex; flex-direction: column; gap: var(--space-3); }
+
+.check__item {
+    display: flex;
+    gap: var(--space-3);
+    align-items: flex-start;
+}
+
+.check__mark {
+    flex: 0 0 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-sunken);
+    border: 1px solid var(--color-border);
+    font-size: .8rem;
+    color: var(--color-text-subtle);
+}
+
+.check__body { display: flex; flex-direction: column; gap: 2px; }
+
+.check__desc { font-size: .82rem; color: var(--color-text-muted); }
+
+.check__item[data-state="pass"] .check__mark {
+    background: #E3F2E8;
+    border-color: #1B6B3A;
+    color: #1B6B3A;
+}
+
+.check__item[data-state="fail"] .check__mark {
+    background: var(--color-danger-soft);
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+}
+
+/* ── 폼 ──────────────────────────────────────────────── */
+.form--grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3) var(--space-4);
+}
+
+.form--grid .field--action { grid-column: 1 / -1; }
+
+/* 제외 코드 입력처럼 값이 긴 필드는 한 줄을 통째로 쓴다 */
+.form--grid .field--wide { grid-column: 1 / -1; }
+
+.form--inline {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-3);
+    align-items: end;
+}
+
+.form--inline .field--action { align-self: end; }
+
+/* ── 목록 ────────────────────────────────────────────── */
+.result-summary {
+    margin: var(--space-4) 0 0;
+    padding: var(--space-3);
+    border-radius: var(--radius-sm);
+    background: var(--color-primary-soft);
+    font-size: .85rem;
+    color: var(--color-primary-hover);
+}
+
+.item-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+}
+
+.item-list:empty { display: none; }
+
+.item {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr) auto;
+    gap: var(--space-3);
+    align-items: center;
+    padding: var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-sunken);
+}
+
+.item__thumb {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    background: var(--color-border);
+}
+
+.item__thumb--empty {
+    display: grid;
+    place-items: center;
+    font-size: .7rem;
+    color: var(--color-text-subtle);
+}
+
+.item__body { min-width: 0; }
+
+.item__title {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.item__sub {
+    font-size: .78rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 필드가 비어 있으면 바로 눈에 띄어야 파싱 문제를 잡을 수 있다 */
+.item__sub em {
+    font-style: normal;
+    color: var(--color-danger);
+}
+
+/* 추첨 결과처럼 썸네일이 없는 목록. 이미지 칸을 빼고 두 칸으로 쓴다 */
+.item--compact { grid-template-columns: minmax(0, 1fr) auto; }
+
+.item-list--compact { max-height: 420px; overflow-y: auto; }
+
+/* ── 빠른 실행 버튼 ──────────────────────────────────── */
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+}
+
+.chips .btn--text {
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    font-size: .78rem;
+}
+
+/* ── 법정동 코드 목록 ────────────────────────────────── */
+.code-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin-top: var(--space-4);
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+.code-list:empty { display: none; }
+
+.code {
+    display: grid;
+    grid-template-columns: 5.5rem minmax(0, 1fr) auto;
+    gap: var(--space-3);
+    align-items: center;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-sunken);
+    font-size: .82rem;
+}
+
+.code__value {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--color-primary-hover);
+}
+
+.code__name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── 상세 ────────────────────────────────────────────── */
+.detail {
+    display: grid;
+    grid-template-columns: 110px minmax(0, 1fr);
+    gap: var(--space-2) var(--space-3);
+    margin: var(--space-4) 0 0;
+    font-size: .85rem;
+}
+
+.detail dt { color: var(--color-text-subtle); }
+
+.detail dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.detail dd[data-empty="true"] {
+    color: var(--color-danger);
+}
+
+/* ── 진단 ────────────────────────────────────────────── */
+.meta {
+    margin: 0;
+    font-size: .85rem;
+    color: var(--color-text-muted);
+}
+
+.badge {
+    display: inline-block;
+    margin-right: var(--space-2);
+    padding: 1px 8px;
+    border-radius: var(--radius-full);
+    font-size: .78rem;
+    font-weight: 600;
+    background: var(--color-surface-sunken);
+    border: 1px solid var(--color-border);
+}
+
+.badge--ok   { background: #E3F2E8; border-color: #1B6B3A; color: #1B6B3A; }
+.badge--fail { background: var(--color-danger-soft); border-color: var(--color-danger); color: var(--color-danger); }
+
+.leak {
+    margin: var(--space-3) 0 0;
+    padding: var(--space-3);
+    border-radius: var(--radius-sm);
+    font-size: .82rem;
+    background: var(--color-danger-soft);
+    color: var(--color-danger-hover);
+}
+
+.leak[data-state="pass"] {
+    background: #E3F2E8;
+    color: #1B6B3A;
+}
+
+.raw { margin-top: var(--space-4); }
+
+.raw summary {
+    cursor: pointer;
+    font-size: .85rem;
+    color: var(--color-primary);
+}
+
+.raw pre {
+    max-height: 320px;
+    overflow: auto;
+    margin: var(--space-3) 0 0;
+    padding: var(--space-3);
+    border-radius: var(--radius-sm);
+    background: #1F1F1D;
+    color: #E8E6DF;
+    font-size: .76rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.hint {
+    margin: var(--space-4) 0 0;
+    font-size: .8rem;
+    color: var(--color-text-subtle);
+}
+
+.hint code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--color-surface-sunken);
+    border: 1px solid var(--color-border);
+    font-size: .95em;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 560px) {
+    .form--grid { grid-template-columns: minmax(0, 1fr); }
+    .form--inline { grid-template-columns: minmax(0, 1fr); }
+    .item { grid-template-columns: 44px minmax(0, 1fr); }
+    .item__thumb { width: 44px; height: 44px; }
+    .detail { grid-template-columns: minmax(0, 1fr); gap: 0 0; }
+    .detail dt { margin-top: var(--space-3); }
+}

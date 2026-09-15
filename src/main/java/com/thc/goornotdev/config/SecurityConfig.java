@@ -74,6 +74,10 @@ public class SecurityConfig {
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
                         // 화면은 모두 열어두고, 로그인 필요 여부는 프론트 가드와 API 권한으로 판단한다
                         .requestMatchers("/", "/index", "/user/**").permitAll()
+                        // TourAPI 연동 점검용 임시 화면. HTML 만 열어주고 실제 호출(/api/dev/**)은
+                        // 아래 anyRequest().authenticated() 에 걸려 로그인해야 쓸 수 있다.
+                        // 화면 자체도 external.tourapi.dev-tools=true 일 때만 매핑된다 (제출 전 삭제 대상)
+                        .requestMatchers("/dev/**").permitAll()
                         // sendError 로 내려가는 응답은 컨테이너가 /error 로 포워딩한다.
                         // 여기를 막아두면 로그인 실패(401)나 잘못된 요청(400)이 전부 403 으로 덮인다
                         .requestMatchers("/error").permitAll()
