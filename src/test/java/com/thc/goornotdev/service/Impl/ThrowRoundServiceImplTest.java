@@ -11,6 +11,7 @@ import com.thc.goornotdev.exception.NoMatchingDataException;
 import com.thc.goornotdev.mapper.ThrowRoundMapper;
 import com.thc.goornotdev.repository.ThrowRoundRepository;
 import com.thc.goornotdev.service.ThrowSessionService;
+import com.thc.goornotdev.util.RegionCatalog;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,8 +47,17 @@ class ThrowRoundServiceImplTest {
     @Mock
     private ThrowSessionService throwSessionService;
 
+    // 추첨은 regions.json 을 들고 있는 카탈로그에 위임한다. 여기서는 "무엇을 넘겼는지"만 검증한다
+    @Mock
+    private RegionCatalog regionCatalog;
+
     @InjectMocks
     private ThrowRoundServiceImpl throwRoundService;
+
+    private RegionCatalog.Region region() {
+        return new RegionCatalog.Region("42210", "강원특별자치도 속초시", "강원특별자치도", "속초시",
+                38.2070, 128.5918, 0.2);
+    }
 
     private ThrowSessionDto.DetailResDto session(ThrowStatus status) {
         return ThrowSessionDto.DetailResDto.builder()
@@ -216,5 +227,94 @@ class ThrowRoundServiceImplTest {
                 .isInstanceOf(InvalidRequestException.class);
 
         verify(throwRoundMapper, never()).excludedCoordinates(any());
+    }
+
+    /* ── 추첨 ────────────────────────────────────────────── */
+
+    @Test
+    @DisplayName("추첨 - 카탈로그가 고른 지역을 그대로 응답으로 옮긴다")
+    void draw_returnsCatalogRegion() {
+        given(throwSessionService.detail(any(), any(), any())).willReturn(session(ThrowStatus.IN_PROGRESS));
+        given(throwRoundMapper.excludedCoordinates(1L)).willReturn(List.of());
+        given(regionCatalog.draw(any())).willReturn(region());
+
+        ThrowRoundDto.DrawResDto result = throwRoundService.draw(
+                DefaultDto.DetailReqDto.builder().id(1L).build(), null, DEVICE_ID);
+
+        assertThat(result.getRegionCode()).isEqualTo("42210");
+        assertThat(result.getRegionName()).isEqualTo("강원특별자치도 속초시");
+        assertThat(result.getLat()).isEqualTo(38.2070);
+        assertThat(result.getLng()).isEqualTo(128.5918);
+    }
+
+    @Test
+    @DisplayName("추첨 - 말래(재던지기) 시 이미 뽑힌 지역 코드가 제외 목록으로 넘어간다")
+    void draw_passesExcludedCodes() {
+        given(throwSessionService.detail(any(), any(), any())).willReturn(session(ThrowStatus.IN_PROGRESS));
+        given(throwRoundMapper.excludedCoordinates(1L)).willReturn(List.of(
+                ThrowRoundDto.CoordinateResDto.builder().regionCode("11110").build(),
+                ThrowRoundDto.CoordinateResDto.builder().regionCode("26110").build()
+        ));
+        given(regionCatalog.draw(any())).willReturn(region());
+
+        throwRoundService.draw(DefaultDto.DetailReqDto.builder().id(1L).build(), null, DEVICE_ID);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Collection<String>> captor = ArgumentCaptor.forClass(Collection.class);
+        verify(regionCatalog).draw(captor.capture());
+        assertThat(captor.getValue()).containsExactly("11110", "26110");
+    }
+
+    @Test
+    @DisplayName("추첨 - regionCode 가 null 인 회차는 제외 목록에서 걸러진다")
+    void draw_skipsNullRegionCode() {
+        given(throwSessionService.detail(any(), any(), any())).willReturn(session(ThrowStatus.IN_PROGRESS));
+        given(throwRoundMapper.excludedCoordinates(1L)).willReturn(List.of(
+                ThrowRoundDto.CoordinateResDto.builder().regionCode("11110").build(),
+                ThrowRoundDto.CoordinateResDto.builder().regionCode(null).build()
+        ));
+        given(regionCatalog.draw(any())).willReturn(region());
+
+        throwRoundService.draw(DefaultDto.DetailReqDto.builder().id(1L).build(), null, DEVICE_ID);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Collection<String>> captor = ArgumentCaptor.forClass(Collection.class);
+        verify(regionCatalog).draw(captor.capture());
+        assertThat(captor.getValue()).containsExactly("11110");
+    }
+
+    @Test
+    @DisplayName("추첨 - 이미 확정된 세션에서는 다시 추첨할 수 없다")
+    void draw_confirmedSession() {
+        given(throwSessionService.detail(any(), any(), any())).willReturn(session(ThrowStatus.CONFIRMED));
+
+        assertThatThrownBy(() -> throwRoundService.draw(
+                DefaultDto.DetailReqDto.builder().id(1L).build(), null, DEVICE_ID))
+                .isInstanceOf(InvalidRequestException.class);
+
+        verify(regionCatalog, never()).draw(any());
+    }
+
+    @Test
+    @DisplayName("추첨 - 남의 세션은 추첨할 수 없다")
+    void draw_otherSession() {
+        willThrow(new AccessDeniedException("본인의 세션만 접근할 수 있습니다."))
+                .given(throwSessionService).detail(any(), any(), any());
+
+        assertThatThrownBy(() -> throwRoundService.draw(
+                DefaultDto.DetailReqDto.builder().id(1L).build(), null, "device-uuid-2"))
+                .isInstanceOf(AccessDeniedException.class);
+
+        verify(regionCatalog, never()).draw(any());
+    }
+
+    @Test
+    @DisplayName("추첨 - 세션 ID 가 없으면 InvalidRequestException")
+    void draw_withoutSessionId() {
+        assertThatThrownBy(() -> throwRoundService.draw(
+                DefaultDto.DetailReqDto.builder().build(), null, DEVICE_ID))
+                .isInstanceOf(InvalidRequestException.class);
+
+        verify(regionCatalog, never()).draw(any());
     }
 }

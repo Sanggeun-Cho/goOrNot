@@ -11,6 +11,7 @@ import com.thc.goornotdev.mapper.ThrowRoundMapper;
 import com.thc.goornotdev.repository.ThrowRoundRepository;
 import com.thc.goornotdev.service.ThrowRoundService;
 import com.thc.goornotdev.service.ThrowSessionService;
+import com.thc.goornotdev.util.RegionCatalog;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @RequiredArgsConstructor
 @Service
@@ -27,6 +29,9 @@ public class ThrowRoundServiceImpl implements ThrowRoundService {
 
     // 회차에는 소유자 정보가 없다. 상위 세션 조회가 곧 소유권 검증이라 세션 서비스를 주입한다
     private final ThrowSessionService throwSessionService;
+
+    // 지역 후보 목록(resources/regions.json)을 들고 있는 인메모리 카탈로그
+    private final RegionCatalog regionCatalog;
 
     @Override
     @Transactional
@@ -101,6 +106,46 @@ public class ThrowRoundServiceImpl implements ThrowRoundService {
         verifySession(param.getId(), reqUserId, reqDeviceId);
 
         return throwRoundMapper.excludedCoordinates(param.getId());
+    }
+
+    /**
+     * 지역 추첨.
+     *
+     * 왜 이 클래스인가:
+     * 추첨의 핵심 입력이 "같은 세션에서 이미 뽑힌 지역"인데, 그 목록을 꺼내는
+     * {@link #excludedCoordinates} 와 소유권 검증 {@code verifySession} 이 여기 있다.
+     * 세션 서비스에 두면 회차 Mapper 를 다시 끌어와야 해서 책임이 흩어진다.
+     *
+     * 결과를 DB 에 쓰지 않는다. 확정은 사용자가 "갈래/말래" 를 고른 뒤
+     * create() 로 기록되며, 추첨 자체는 부수효과가 없는 읽기 작업이다.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public ThrowRoundDto.DrawResDto draw(DefaultDto.DetailReqDto param, Long reqUserId, String reqDeviceId) {
+        if (param.getId() == null) {
+            throw new InvalidRequestException("추첨할 세션 ID 가 필요합니다.");
+        }
+
+        ThrowSessionDto.DetailResDto session = verifySession(param.getId(), reqUserId, reqDeviceId);
+
+        if (ThrowStatus.CONFIRMED.equals(session.getStatus())) {
+            throw new InvalidRequestException("이미 확정된 세션에서는 다시 추첨할 수 없습니다.");
+        }
+
+        // 말래(재던지기) 블랙리스트. 이미 뽑힌 지역은 이번 추첨에서 가중치 0 과 같은 효과로 빠진다
+        List<String> excludedCodes = throwRoundMapper.excludedCoordinates(session.getId()).stream()
+                .map(ThrowRoundDto.CoordinateResDto::getRegionCode)
+                .filter(Objects::nonNull)
+                .toList();
+
+        RegionCatalog.Region region = regionCatalog.draw(excludedCodes);
+
+        return ThrowRoundDto.DrawResDto.builder()
+                .regionCode(region.code())
+                .regionName(region.name())
+                .lat(region.lat())
+                .lng(region.lng())
+                .build();
     }
 
     /* ── 내부 공통 ───────────────────────────────────────── */

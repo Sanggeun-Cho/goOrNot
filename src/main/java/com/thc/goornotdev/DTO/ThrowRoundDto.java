@@ -83,4 +83,22 @@ public class ThrowRoundDto {
         Double lat;
         Double lng;
     }
+
+    /**
+     * RESPONSE
+     * 서버가 확정한 이번 회차의 지역.
+     *
+     * 화면의 던지기 핀 애니메이션은 연출일 뿐이고, 실제 지역은 이 응답이 정한다.
+     * 클라이언트가 좌표를 만들어 보내면 원하는 지역만 골라낼 수 있어서 서버가 정한다.
+     */
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
+    public static class DrawResDto {
+        String regionCode;
+
+        /** 표시용 전체 이름 (예: 강원특별자치도 속초시) */
+        String regionName;
+
+        Double lat;
+        Double lng;
+    }
 }
