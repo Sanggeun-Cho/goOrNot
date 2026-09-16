@@ -67,20 +67,39 @@ class ThrowRoundServiceImplTest {
                 .build();
     }
 
+    private static final String REGION_CODE = "42210";
+
     private ThrowRoundDto.CreateReqDto createReqDto() {
+        return createReqDto(REGION_CODE);
+    }
+
+    private ThrowRoundDto.CreateReqDto createReqDto(String regionCode) {
         return ThrowRoundDto.CreateReqDto.builder()
                 .throwSessionId(1L)
-                .regionCode("11")
+                .regionCode(regionCode)
                 .lat(37.5)
                 .lng(127.0)
                 .choice(ThrowChoice.AGAIN)
                 .build();
     }
 
+    /**
+     * 회차 기록은 "방금 던진 결과" 가 있어야 받아준다.
+     * 실제 흐름과 똑같이 draw() 를 한 번 호출해 서버에 추첨 티켓을 만들어 둔다.
+     */
+    private void givenDrawn() {
+        given(throwSessionService.detail(any(), any(), any())).willReturn(session(ThrowStatus.IN_PROGRESS));
+        given(throwRoundMapper.excludedCoordinates(1L)).willReturn(List.of());
+        given(regionCatalog.draw(any())).willReturn(region());
+
+        throwRoundService.draw(DefaultDto.DetailReqDto.builder().id(1L).build(), null, DEVICE_ID);
+    }
+
     @Test
     @DisplayName("생성 - 첫 회차는 roundNo 1 로 저장된다")
     void create_firstRoundNo() {
-        given(throwSessionService.detail(any(), any(), any())).willReturn(session(ThrowStatus.IN_PROGRESS));
+        givenDrawn();
+        given(regionCatalog.find(REGION_CODE)).willReturn(region());
         given(throwRoundRepository.findTopByThrowSessionIdOrderByRoundNoDesc(1L)).willReturn(Optional.empty());
         given(throwRoundRepository.save(any(ThrowRound.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
@@ -95,9 +114,10 @@ class ThrowRoundServiceImplTest {
     @Test
     @DisplayName("생성 - roundNo 는 클라이언트 값이 아니라 직전 회차 + 1 로 채워진다")
     void create_nextRoundNo() {
-        ThrowRound last = ThrowRound.of(1L, 4, "26", 35.1, 129.0, ThrowChoice.AGAIN);
+        ThrowRound last = ThrowRound.of(1L, 4, "26110", 35.1, 129.0, ThrowChoice.AGAIN);
 
-        given(throwSessionService.detail(any(), any(), any())).willReturn(session(ThrowStatus.IN_PROGRESS));
+        givenDrawn();
+        given(regionCatalog.find(REGION_CODE)).willReturn(region());
         given(throwRoundRepository.findTopByThrowSessionIdOrderByRoundNoDesc(1L)).willReturn(Optional.of(last));
         given(throwRoundRepository.save(any(ThrowRound.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
@@ -107,6 +127,65 @@ class ThrowRoundServiceImplTest {
         ArgumentCaptor<ThrowRound> captor = ArgumentCaptor.forClass(ThrowRound.class);
         verify(throwRoundRepository).save(captor.capture());
         assertThat(captor.getValue().getRoundNo()).isEqualTo(5);
+    }
+
+    /* ── 추첨 우회 차단 ───────────────────────────────────── */
+
+    @Test
+    @DisplayName("생성 - 던지지 않고 회차부터 기록하려 하면 거부된다")
+    void create_withoutDraw() {
+        given(throwSessionService.detail(any(), any(), any())).willReturn(session(ThrowStatus.IN_PROGRESS));
+
+        assertThatThrownBy(() -> throwRoundService.create(createReqDto(), null, DEVICE_ID))
+                .isInstanceOf(InvalidRequestException.class);
+
+        verify(throwRoundRepository, never()).save(any(ThrowRound.class));
+    }
+
+    @Test
+    @DisplayName("생성 - 서버가 뽑은 지역이 아닌 코드를 보내면 거부된다")
+    void create_regionCodeMismatch() {
+        givenDrawn();
+
+        // 서버는 속초를 뽑았는데 강남으로 바꿔치기하려는 요청
+        assertThatThrownBy(() -> throwRoundService.create(createReqDto("11680"), null, DEVICE_ID))
+                .isInstanceOf(InvalidRequestException.class);
+
+        verify(throwRoundRepository, never()).save(any(ThrowRound.class));
+    }
+
+    @Test
+    @DisplayName("생성 - 추첨 티켓은 1회용이라 같은 결과로 두 번 기록할 수 없다")
+    void create_ticketIsSingleUse() {
+        givenDrawn();
+        given(regionCatalog.find(REGION_CODE)).willReturn(region());
+        given(throwRoundRepository.findTopByThrowSessionIdOrderByRoundNoDesc(1L)).willReturn(Optional.empty());
+        given(throwRoundRepository.save(any(ThrowRound.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        throwRoundService.create(createReqDto(), null, DEVICE_ID);
+
+        assertThatThrownBy(() -> throwRoundService.create(createReqDto(), null, DEVICE_ID))
+                .isInstanceOf(InvalidRequestException.class);
+
+        verify(throwRoundRepository).save(any(ThrowRound.class));   // 저장은 처음 한 번뿐
+    }
+
+    @Test
+    @DisplayName("생성 - 좌표는 클라이언트 값이 아니라 카탈로그 값으로 기록된다")
+    void create_overwritesClientCoordinates() {
+        givenDrawn();
+        given(regionCatalog.find(REGION_CODE)).willReturn(region());
+        given(throwRoundRepository.findTopByThrowSessionIdOrderByRoundNoDesc(1L)).willReturn(Optional.empty());
+        given(throwRoundRepository.save(any(ThrowRound.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        throwRoundService.create(createReqDto(), null, DEVICE_ID);
+
+        ArgumentCaptor<ThrowRound> captor = ArgumentCaptor.forClass(ThrowRound.class);
+        verify(throwRoundRepository).save(captor.capture());
+        assertThat(captor.getValue().getLat()).isEqualTo(38.2070);
+        assertThat(captor.getValue().getLng()).isEqualTo(128.5918);
     }
 
     @Test

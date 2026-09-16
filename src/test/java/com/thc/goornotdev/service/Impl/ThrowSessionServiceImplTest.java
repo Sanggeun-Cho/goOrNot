@@ -14,6 +14,7 @@ import com.thc.goornotdev.mapper.ThrowSessionMapper;
 import com.thc.goornotdev.repository.SavedPlaceRepository;
 import com.thc.goornotdev.repository.ThrowRoundRepository;
 import com.thc.goornotdev.repository.ThrowSessionRepository;
+import com.thc.goornotdev.util.RegionCatalog;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,15 +51,36 @@ class ThrowSessionServiceImplTest {
     @Mock
     private SavedPlaceRepository savedPlaceRepository;
 
+    // 클라이언트가 보낸 지역 정보는 이 카탈로그를 거쳐야만 반영된다
+    @Mock
+    private RegionCatalog regionCatalog;
+
     @InjectMocks
     private ThrowSessionServiceImpl throwSessionService;
 
+    private static final String REGION_CODE = "42210";
+
+    private RegionCatalog.Region region() {
+        return new RegionCatalog.Region(REGION_CODE, "강원특별자치도 속초시", "강원특별자치도", "속초시",
+                38.2070, 128.5918, 0.2);
+    }
+
     private ThrowSession anonymousSession() {
-        ThrowSession session = ThrowSession.of(null, DEVICE_ID, ThrowSource.RANDOM, null,
+        return anonymousSession(ThrowSource.RANDOM);
+    }
+
+    private ThrowSession anonymousSession(ThrowSource source) {
+        ThrowSession session = ThrowSession.of(null, DEVICE_ID, source, null,
                 ThrowStatus.IN_PROGRESS, null, null, null, null);
         session.setId(1L);
         session.setDeleted(false);
         return session;
+    }
+
+    /** 세션에 "갈래(GO)" 로 남은 회차 기록. 확정 검증이 근거로 삼는 값이다 */
+    private void givenGoRound(String regionCode) {
+        given(throwRoundRepository.findByThrowSessionIdAndDeletedFalse(1L)).willReturn(List.of(
+                ThrowRound.of(1L, 1, regionCode, 38.2070, 128.5918, ThrowChoice.GO)));
     }
 
     @Test
@@ -78,17 +100,15 @@ class ThrowSessionServiceImplTest {
     }
 
     @Test
-    @DisplayName("생성 - SEARCH 는 좌표가 있으면 CONFIRMED 로 저장된다")
+    @DisplayName("생성 - SEARCH 는 지역 코드가 있으면 CONFIRMED 로 저장된다")
     void create_searchStartsConfirmed() {
+        given(regionCatalog.find(REGION_CODE)).willReturn(region());
         given(throwSessionRepository.save(any(ThrowSession.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         throwSessionService.create(ThrowSessionDto.CreateReqDto.builder()
                 .source(ThrowSource.SEARCH)
-                .regionCode("11")
-                .regionName("서울")
-                .lat(37.5)
-                .lng(127.0)
+                .regionCode(REGION_CODE)
                 .build(), 1L, DEVICE_ID);
 
         ArgumentCaptor<ThrowSession> captor = ArgumentCaptor.forClass(ThrowSession.class);
@@ -97,14 +117,70 @@ class ThrowSessionServiceImplTest {
     }
 
     @Test
-    @DisplayName("생성 - SEARCH 인데 좌표가 없으면 InvalidRequestException")
-    void create_searchWithoutCoordinates() {
+    @DisplayName("생성 - SEARCH 의 이름·좌표는 클라이언트 값이 아니라 카탈로그 값으로 덮어써진다")
+    void create_searchOverwritesClientCoordinates() {
+        given(regionCatalog.find(REGION_CODE)).willReturn(region());
+        given(throwSessionRepository.save(any(ThrowSession.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        throwSessionService.create(ThrowSessionDto.CreateReqDto.builder()
+                .source(ThrowSource.SEARCH)
+                .regionCode(REGION_CODE)
+                .regionName("내가 정한 이름")
+                .lat(0.0)
+                .lng(0.0)
+                .build(), 1L, DEVICE_ID);
+
+        ArgumentCaptor<ThrowSession> captor = ArgumentCaptor.forClass(ThrowSession.class);
+        verify(throwSessionRepository).save(captor.capture());
+        assertThat(captor.getValue().getRegionName()).isEqualTo("강원특별자치도 속초시");
+        assertThat(captor.getValue().getLat()).isEqualTo(38.2070);
+        assertThat(captor.getValue().getLng()).isEqualTo(128.5918);
+    }
+
+    @Test
+    @DisplayName("생성 - SEARCH 인데 지역 코드가 없으면 InvalidRequestException")
+    void create_searchWithoutRegionCode() {
         assertThatThrownBy(() -> throwSessionService.create(ThrowSessionDto.CreateReqDto.builder()
                 .source(ThrowSource.SEARCH)
                 .build(), null, DEVICE_ID))
                 .isInstanceOf(InvalidRequestException.class);
 
         verify(throwSessionRepository, never()).save(any(ThrowSession.class));
+    }
+
+    @Test
+    @DisplayName("생성 - 카탈로그에 없는 지역 코드는 거부된다")
+    void create_searchUnknownRegionCode() {
+        given(regionCatalog.find("99999")).willReturn(null);
+
+        assertThatThrownBy(() -> throwSessionService.create(ThrowSessionDto.CreateReqDto.builder()
+                .source(ThrowSource.SEARCH)
+                .regionCode("99999")
+                .build(), null, DEVICE_ID))
+                .isInstanceOf(InvalidRequestException.class);
+
+        verify(throwSessionRepository, never()).save(any(ThrowSession.class));
+    }
+
+    @Test
+    @DisplayName("생성 - RANDOM 에 지역 정보를 실어 보내도 버려진다 (던지기 전 확정 방지)")
+    void create_randomDropsRegion() {
+        given(throwSessionRepository.save(any(ThrowSession.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        throwSessionService.create(ThrowSessionDto.CreateReqDto.builder()
+                .source(ThrowSource.RANDOM)
+                .regionCode("11680")
+                .regionName("서울특별시 강남구")
+                .lat(37.5)
+                .lng(127.0)
+                .build(), null, DEVICE_ID);
+
+        ArgumentCaptor<ThrowSession> captor = ArgumentCaptor.forClass(ThrowSession.class);
+        verify(throwSessionRepository).save(captor.capture());
+        assertThat(captor.getValue().getRegionCode()).isNull();
+        assertThat(captor.getValue().getLat()).isNull();
     }
 
     @Test
@@ -133,24 +209,113 @@ class ThrowSessionServiceImplTest {
     }
 
     @Test
-    @DisplayName("수정 - 지역 정보를 함께 주면 확정된다")
+    @DisplayName("수정 - 갈래(GO) 로 남은 회차의 지역이면 확정된다")
     void update_confirmWithRegion() {
         ThrowSession session = anonymousSession();
         given(throwSessionRepository.findById(1L)).willReturn(Optional.of(session));
+        given(regionCatalog.find(REGION_CODE)).willReturn(region());
+        givenGoRound(REGION_CODE);
 
         throwSessionService.update(ThrowSessionDto.UpdateReqDto.builder()
                 .id(1L)
                 .status(ThrowStatus.CONFIRMED)
                 .totalCount(3)
-                .regionCode("11")
-                .regionName("서울")
-                .lat(37.5)
-                .lng(127.0)
+                .regionCode(REGION_CODE)
                 .build(), null, DEVICE_ID);
 
         assertThat(session.getStatus()).isEqualTo(ThrowStatus.CONFIRMED);
         assertThat(session.getTotalCount()).isEqualTo(3);
         verify(throwSessionRepository).save(session);
+    }
+
+    @Test
+    @DisplayName("수정 - 던지지 않은 지역으로는 확정할 수 없다 (추첨 우회 차단)")
+    void update_confirmWithoutGoRound() {
+        ThrowSession session = anonymousSession();
+        given(throwSessionRepository.findById(1L)).willReturn(Optional.of(session));
+        given(regionCatalog.find(REGION_CODE)).willReturn(region());
+        // 회차 기록이 아예 없다 = 한 번도 던지지 않았다
+        given(throwRoundRepository.findByThrowSessionIdAndDeletedFalse(1L)).willReturn(List.of());
+
+        assertThatThrownBy(() -> throwSessionService.update(ThrowSessionDto.UpdateReqDto.builder()
+                .id(1L)
+                .status(ThrowStatus.CONFIRMED)
+                .regionCode(REGION_CODE)
+                .build(), null, DEVICE_ID))
+                .isInstanceOf(InvalidRequestException.class);
+
+        verify(throwSessionRepository, never()).save(any(ThrowSession.class));
+    }
+
+    @Test
+    @DisplayName("수정 - 말래(AGAIN) 로만 스친 지역으로는 확정할 수 없다")
+    void update_confirmWithAgainRoundOnly() {
+        ThrowSession session = anonymousSession();
+        given(throwSessionRepository.findById(1L)).willReturn(Optional.of(session));
+        given(regionCatalog.find(REGION_CODE)).willReturn(region());
+        given(throwRoundRepository.findByThrowSessionIdAndDeletedFalse(1L)).willReturn(List.of(
+                ThrowRound.of(1L, 1, REGION_CODE, 38.2070, 128.5918, ThrowChoice.AGAIN)));
+
+        assertThatThrownBy(() -> throwSessionService.update(ThrowSessionDto.UpdateReqDto.builder()
+                .id(1L)
+                .status(ThrowStatus.CONFIRMED)
+                .regionCode(REGION_CODE)
+                .build(), null, DEVICE_ID))
+                .isInstanceOf(InvalidRequestException.class);
+    }
+
+    @Test
+    @DisplayName("수정 - 확정 좌표는 클라이언트 값이 아니라 카탈로그 값으로 채워진다")
+    void update_confirmOverwritesClientCoordinates() {
+        ThrowSession session = anonymousSession();
+        given(throwSessionRepository.findById(1L)).willReturn(Optional.of(session));
+        given(regionCatalog.find(REGION_CODE)).willReturn(region());
+        givenGoRound(REGION_CODE);
+
+        throwSessionService.update(ThrowSessionDto.UpdateReqDto.builder()
+                .id(1L)
+                .status(ThrowStatus.CONFIRMED)
+                .regionCode(REGION_CODE)
+                .regionName("서울특별시 강남구")     // 표시만 바꿔치기하려는 시도
+                .lat(37.5)
+                .lng(127.0)
+                .build(), null, DEVICE_ID);
+
+        assertThat(session.getRegionName()).isEqualTo("강원특별자치도 속초시");
+        assertThat(session.getLat()).isEqualTo(38.2070);
+        assertThat(session.getLng()).isEqualTo(128.5918);
+    }
+
+    @Test
+    @DisplayName("수정 - SEARCH 세션은 회차 기록 없이도 카탈로그에 있는 지역이면 확정된다")
+    void update_searchSessionSkipsGoRoundCheck() {
+        ThrowSession session = anonymousSession(ThrowSource.SEARCH);
+        given(throwSessionRepository.findById(1L)).willReturn(Optional.of(session));
+        given(regionCatalog.find(REGION_CODE)).willReturn(region());
+
+        throwSessionService.update(ThrowSessionDto.UpdateReqDto.builder()
+                .id(1L)
+                .status(ThrowStatus.CONFIRMED)
+                .regionCode(REGION_CODE)
+                .build(), null, DEVICE_ID);
+
+        assertThat(session.getStatus()).isEqualTo(ThrowStatus.CONFIRMED);
+        verify(throwRoundRepository, never()).findByThrowSessionIdAndDeletedFalse(any());
+    }
+
+    @Test
+    @DisplayName("수정 - 지역 코드 없이 좌표만 바꾸려는 요청은 거부된다")
+    void update_coordinatesWithoutRegionCode() {
+        given(throwSessionRepository.findById(1L)).willReturn(Optional.of(anonymousSession()));
+
+        assertThatThrownBy(() -> throwSessionService.update(ThrowSessionDto.UpdateReqDto.builder()
+                .id(1L)
+                .lat(37.5)
+                .lng(127.0)
+                .build(), null, DEVICE_ID))
+                .isInstanceOf(InvalidRequestException.class);
+
+        verify(throwSessionRepository, never()).save(any(ThrowSession.class));
     }
 
     @Test
