@@ -82,6 +82,13 @@
                         <span class="check__desc">인기 지역이 가중치 비율만큼만 뽑히고, 제외 지역은 안 나온다</span>
                     </span>
                 </li>
+                <li class="check__item" data-check="category">
+                    <span class="check__mark">·</span>
+                    <span class="check__body">
+                        <strong>⑨ 서비스 분류코드</strong>
+                        <span class="check__desc">categoryCode2 로 대→중→소 분류가 내려온다</span>
+                    </span>
+                </li>
             </ul>
 
             <p class="hint">
@@ -369,6 +376,62 @@
             <ul class="item-list item-list--compact" data-draw-list></ul>
 
             <p class="state" data-empty="draw">아직 추첨하지 않았습니다.</p>
+        </section>
+
+        <!--/* ── 시나리오 9 : 서비스 분류코드 ────────────── */-->
+        <section class="card">
+            <h2 class="card__title">⑨ 서비스 분류코드 (categoryCode2)</h2>
+
+            <p class="hint">
+                <strong>ThrowCategory 에 쓸 cat 코드를 확정하는 화면입니다.</strong>
+                전부 비우면 <strong>대분류(cat1)</strong>, 대분류만 넣으면 <strong>중분류(cat2)</strong>,
+                대분류+중분류를 넣으면 <strong>소분류(cat3)</strong>가 내려옵니다.
+                결과의 코드를 누르면 한 단계 더 내려갑니다.
+            </p>
+
+            <form class="form form--grid" data-form="category">
+                <div class="field">
+                    <label class="field__label" for="catContentTypeId">관광타입 (선택)</label>
+                    <input class="field__input" id="catContentTypeId" name="contentTypeId"
+                           placeholder="예: 12 관광지" autocomplete="off">
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="cat1">대분류 cat1</label>
+                    <input class="field__input" id="cat1" name="cat1"
+                           placeholder="비우면 대분류 목록" autocomplete="off">
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="cat2">중분류 cat2</label>
+                    <input class="field__input" id="cat2" name="cat2"
+                           placeholder="cat1 과 함께" autocomplete="off">
+                </div>
+
+                <div class="field field--action">
+                    <button class="btn btn--primary btn--block" type="submit">분류 조회</button>
+                </div>
+            </form>
+
+            <div class="chips">
+                <button class="btn btn--text" type="button" data-category-preset="">대분류 처음부터</button>
+                <button class="btn btn--text" type="button" data-category-preset="A01">A01 자연</button>
+                <button class="btn btn--text" type="button" data-category-preset="A02">A02 인문(문화/예술/역사)</button>
+                <button class="btn btn--text" type="button" data-category-preset="A03">A03 레포츠</button>
+            </div>
+
+            <p class="result-summary" data-summary="category" hidden></p>
+
+            <ul class="code-list" data-category-list></ul>
+
+            <p class="state" data-empty="category">아직 조회하지 않았습니다.</p>
+
+            <p class="hint">
+                "공원" 은 매뉴얼만으로는 어느 분류 아래인지 확정할 수 없습니다.
+                <strong>A01 자연</strong> 아래 중분류를 먼저 훑어보시고, 안 보이면
+                <strong>A02 인문</strong> 쪽도 확인해 주세요. 찾으신 cat1/cat2/cat3 조합을 알려주시면
+                <code>ThrowCategory</code> enum 으로 고정하겠습니다.
+            </p>
         </section>
 
         <!--/* ── 진단 ───────────────────────────────────── */-->

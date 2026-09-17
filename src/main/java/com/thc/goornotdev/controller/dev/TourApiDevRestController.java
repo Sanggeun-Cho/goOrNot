@@ -98,6 +98,25 @@ public class TourApiDevRestController {
         return ResponseEntity.ok(tourApiClient.ldongCode(lDongRegnCd));
     }
 
+    /**
+     * 시나리오 7 - 서비스 분류코드 조회 (categoryCode2).
+     *
+     * ThrowCategory 에 쓸 cat1/cat2/cat3 코드를 눈으로 확정하기 위한 도구다.
+     * 특히 "공원" 이 어느 분류 아래에 있는지는 매뉴얼만 봐서는 알 수 없어
+     * 실제 응답을 받아 확인해야 한다.
+     *
+     * 비우고 부르면 대분류, cat1 을 넣으면 중분류, cat1+cat2 를 넣으면 소분류가 온다.
+     */
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/tourapi/category-code")
+    public ResponseEntity<List<TourApiDto.Code>> categoryCode(
+            @RequestParam(required = false) String contentTypeId,
+            @RequestParam(required = false) String cat1,
+            @RequestParam(required = false) String cat2) {
+
+        return ResponseEntity.ok(tourApiClient.categoryCode(contentTypeId, cat1, cat2));
+    }
+
     /* ── 카카오 로컬 ─────────────────────────────────────── */
 
     /**

@@ -473,6 +473,105 @@ function codeRow(item, parentCode) {
     return row;
 }
 
+/* ── 시나리오 9 : 서비스 분류코드 ────────────────────── */
+
+const categoryForm = $('[data-form="category"]');
+const categoryBox = $('[data-category-list]');
+const categorySummary = $('[data-summary="category"]');
+
+bindSubmit(categoryForm, async (values) => {
+    const query = {};
+
+    // 빈 값을 보내면 파라미터 오류가 날 수 있어 채워진 것만 싣는다
+    if (values.contentTypeId) query.contentTypeId = values.contentTypeId;
+    if (values.cat1) query.cat1 = values.cat1;
+    if (values.cat2) query.cat2 = values.cat2;
+
+    const result = await call('/api/dev/tourapi/category-code', query);
+
+    if (!result.ok) {
+        setCheck('category', 'fail');
+        categorySummary.hidden = true;
+        categoryBox.innerHTML = '';
+        showEmpty('category', errorMessage(result));
+        toast(errorMessage(result), 'error');
+        return;
+    }
+
+    renderCategory(result.body, values);
+});
+
+function renderCategory(codes, values) {
+    const items = Array.isArray(codes) ? codes : [];
+
+    // 다음에 내려갈 단계가 무엇인지 사람이 바로 알아보게 적는다
+    const level = values.cat2 ? '소분류(cat3)' : (values.cat1 ? '중분류(cat2)' : '대분류(cat1)');
+    const parent = [values.cat1, values.cat2].filter(Boolean).join(' > ');
+
+    categorySummary.hidden = false;
+    categorySummary.textContent = parent
+        ? `${parent} 아래 ${level} ${items.length}건`
+        : `${level} ${items.length}건`;
+
+    categoryBox.innerHTML = '';
+
+    if (items.length === 0) {
+        setCheck('category', 'fail');
+        showEmpty('category', '응답은 정상이지만 분류가 0건입니다.');
+        return;
+    }
+
+    items.forEach((item) => categoryBox.appendChild(categoryRow(item, values)));
+
+    hideEmpty('category');
+    setCheck('category', 'pass');
+}
+
+function categoryRow(item, values) {
+    const row = document.createElement('li');
+    row.className = 'code';
+
+    const code = document.createElement('span');
+    code.className = 'code__value';
+    code.textContent = item.code ?? '-';
+
+    const name = document.createElement('span');
+    name.className = 'code__name';
+    name.textContent = item.name ?? '';
+
+    row.append(code, name);
+
+    // 소분류(cat1+cat2 를 이미 준 상태)가 마지막 단계라 더 내려갈 곳이 없다
+    if (item.code && !values.cat2) {
+        const button = document.createElement('button');
+        button.className = 'btn btn--text';
+        button.type = 'button';
+        button.textContent = values.cat1 ? '소분류' : '중분류';
+        button.addEventListener('click', () => {
+            if (values.cat1) {
+                categoryForm.elements.cat2.value = item.code;
+            } else {
+                categoryForm.elements.cat1.value = item.code;
+                categoryForm.elements.cat2.value = '';
+            }
+
+            categoryForm.requestSubmit();
+        });
+
+        row.appendChild(button);
+    }
+
+    return row;
+}
+
+document.querySelectorAll('[data-category-preset]').forEach((button) => {
+    button.addEventListener('click', () => {
+        categoryForm.elements.cat1.value = button.dataset.categoryPreset;
+        categoryForm.elements.cat2.value = '';
+        categoryForm.requestSubmit();
+    });
+});
+
 /* ── 시나리오 7 : 장소 목록 (PlaceService) ───────────── */
 
 const placeForm = $('[data-form="place"]');

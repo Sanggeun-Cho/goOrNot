@@ -46,6 +46,7 @@ public class TourApiClient {
     private static final String OP_LOCATION_BASED_LIST = "locationBasedList2";
     private static final String OP_DETAIL_COMMON = "detailCommon2";
     private static final String OP_LDONG_CODE = "ldongCode2";
+    private static final String OP_CATEGORY_CODE = "categoryCode2";
 
     /** serviceKey=... 부분만 골라내 가리기 위한 패턴 */
     private static final Pattern SERVICE_KEY_PATTERN = Pattern.compile("(?i)(serviceKey=)[^&\\s\"<]*");
@@ -131,6 +132,33 @@ public class TourApiClient {
         params.put("lDongRegnCd", lDongRegnCd);
 
         return parseCodes(call(OP_LDONG_CODE, params), OP_LDONG_CODE);
+    }
+
+    /**
+     * 서비스 분류코드 조회.
+     *
+     * 계층은 cat1(대분류) → cat2(중분류) → cat3(소분류) 3단계다.
+     * 상위 코드를 주지 않으면 그 단계의 전체 목록이 온다.
+     *   - 아무것도 안 주면      : cat1 목록 (A01 자연, A02 인문, A03 레포츠 ...)
+     *   - cat1 만 주면         : 그 아래 cat2 목록
+     *   - cat1 + cat2 를 주면   : 그 아래 cat3 목록
+     *
+     * 응답 형태가 ldongCode2 와 같은 code/name 쌍이라 파싱을 공유한다.
+     *
+     * @param contentTypeId 관광타입으로 한 번 더 좁히고 싶을 때. null 이면 보내지 않는다
+     * @param cat1          대분류 코드. null 이면 대분류 목록을 받는다
+     * @param cat2          중분류 코드. cat1 과 함께 줘야 의미가 있다
+     */
+    public List<TourApiDto.Code> categoryCode(String contentTypeId, String cat1, String cat2) {
+        Map<String, String> params = new LinkedHashMap<>();
+        // 소분류가 가장 많은 분류도 100개를 넘지 않는다
+        params.put("numOfRows", "100");
+        params.put("pageNo", "1");
+        params.put("contentTypeId", contentTypeId);
+        params.put("cat1", cat1);
+        params.put("cat2", cat2);
+
+        return parseCodes(call(OP_CATEGORY_CODE, params), OP_CATEGORY_CODE);
     }
 
     /**
