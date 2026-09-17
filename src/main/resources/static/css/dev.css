@@ -242,6 +242,12 @@
     color: #1B6B3A;
 }
 
+/* 합격/불합격을 화면이 판정할 수 없고 값만 보여주는 경우 */
+.leak[data-state="info"] {
+    background: var(--color-surface-sunken);
+    color: var(--color-text-muted);
+}
+
 .raw { margin-top: var(--space-4); }
 
 .raw summary {

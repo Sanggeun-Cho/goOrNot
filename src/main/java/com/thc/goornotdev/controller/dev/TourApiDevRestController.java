@@ -199,6 +199,7 @@ public class TourApiDevRestController {
     public ResponseEntity<PlaceDto.ListResDto> placeList(
             @RequestParam String regionCode,
             @RequestParam(required = false) String contentTypeId,
+            @RequestParam(required = false) String arrange,
             @RequestParam(required = false) Integer radius,
             @RequestParam(required = false) Integer numOfRows,
             @RequestParam(required = false) Integer pageNo) {
@@ -206,6 +207,7 @@ public class TourApiDevRestController {
         return ResponseEntity.ok(placeService.list(PlaceDto.ListReqDto.builder()
                 .regionCode(regionCode)
                 .contentTypeId(contentTypeId)
+                .arrange(arrange)
                 .radius(radius)
                 .numOfRows(numOfRows)
                 .pageNo(pageNo)

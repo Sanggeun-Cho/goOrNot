@@ -17,11 +17,15 @@ const roundsBox = $('[data-list="rounds"]');
 const regionsBox = $('[data-list="regions"]');
 const bypassBox = $('[data-field="bypass"]');
 const placesBox = $('[data-list="places"]');
+const arrangeBox = $('[data-field="arrange"]');
+const cardsBox = $('[data-list="cards"]');
+const rerollBox = $('[data-field="reroll"]');
 
 /** 화면이 들고 있는 상태. 서버가 진실이고 이건 표시용 사본이다 */
 const state = {
     sessionId: null,
     drawn: null,      // 마지막 추첨 결과 { regionCode, regionName, lat, lng }
+    category: null,   // 마지막으로 카드를 받은 카테고리
 };
 
 /* ── 호출 ────────────────────────────────────────────── */
@@ -376,32 +380,47 @@ async function createSearchSession(region) {
 /* ── 주변 장소 ───────────────────────────────────────── */
 
 /**
- * 확정 지역 주변 장소 조회.
+ * 현재 세션의 확정 지역 코드. 확정 전이면 null.
  *
- * 이 화면에서 유일하게 TourAPI 일일 한도를 쓰는 호출이라 버튼을 눌렀을 때만 나간다.
- * 좌표는 보내지 않는다. 지역 코드만 넘기고 서버가 카탈로그 좌표로 조회한다.
+ * 화면에 보이는 값을 쓰지 않고 매번 서버에 다시 묻는다.
+ * 확정은 다른 탭이나 앞선 우회 시도로도 바뀔 수 있어서, 표시용 사본을 믿으면
+ * 엉뚱한 지역으로 TourAPI 를 호출하고 한도만 쓴다.
  */
-async function places() {
+async function confirmedRegionCode() {
     if (!state.sessionId) {
         toast('먼저 세션을 만들어 주세요.', 'error');
 
-        return;
+        return null;
     }
 
     const session = await expectOk('/api/throw-session', {
         query: { id: state.sessionId },
     }, '세션 조회 실패');
 
-    if (!session) return;
+    if (!session) return null;
 
     if (!session.regionCode) {
         toast('지역이 확정된 세션이 아닙니다. "갈래" 로 확정하거나 검색으로 만들어 주세요.', 'error');
 
-        return;
+        return null;
     }
 
+    return session.regionCode;
+}
+
+/**
+ * 확정 지역 주변 장소 조회.
+ *
+ * 이 화면에서 유일하게 TourAPI 일일 한도를 쓰는 호출이라 버튼을 눌렀을 때만 나간다.
+ * 좌표는 보내지 않는다. 지역 코드만 넘기고 서버가 카탈로그 좌표로 조회한다.
+ */
+async function places() {
+    const regionCode = await confirmedRegionCode();
+
+    if (!regionCode) return;
+
     const result = await expectOk('/api/place/list', {
-        query: { regionCode: session.regionCode },
+        query: { regionCode },
     }, '장소 조회 실패 (로그인 상태를 확인하세요)');
 
     if (!result) {
@@ -453,6 +472,187 @@ function renderPlaces(list) {
     });
 }
 
+/* ── 정렬값 확인 ─────────────────────────────────────── */
+
+/**
+ * arrange 값이 위치기반 조회에서 받아들여지는지 확인.
+ *
+ * 카드 후보는 S(거리순 + 대표이미지 보장)로 뽑는데, 이 코드가 위치기반 조회에서
+ * 유효한지 매뉴얼만으로는 확정할 수 없었다. 카드 기능 전체를 돌려보고 실패하면
+ * 정렬값 문제인지 카드 로직 문제인지 구분이 안 되므로 여기서 따로 떼어 본다.
+ */
+async function checkArrange(arrange) {
+    const regionCode = await confirmedRegionCode();
+
+    if (!regionCode) return;
+
+    const result = await call('/api/dev/place/list', {
+        query: { regionCode, arrange, numOfRows: 5 },
+    });
+
+    const ok = result.ok;
+
+    arrangeBox.dataset.state = ok ? 'pass' : 'fail';
+    arrangeBox.textContent = ok
+        ? `arrange=${arrange} 통과 ✓ ${(result.body?.places ?? []).length}건`
+        : `arrange=${arrange} 거부 ✗ ${result.status} ${messageOf(result)}`;
+
+    if (arrange === 'S') mark('arrange', ok);
+
+    if (!ok) {
+        toast(`arrange=${arrange} 가 거부됐습니다. 응답 내용을 확인해 주세요.`, 'error');
+    }
+}
+
+/* ── 카테고리 카드 ───────────────────────────────────── */
+
+/**
+ * 카드 세트 받기.
+ *
+ * 같은 카테고리를 다시 눌러도 카드가 그대로여야 정상이다.
+ * 매번 새로 깔리면 리롤 1회 제한이 "카테고리를 다시 누른다" 로 무력화된다.
+ */
+async function dealCards(category) {
+    if (!state.sessionId) {
+        toast('먼저 세션을 만들어 주세요.', 'error');
+
+        return;
+    }
+
+    const set = await expectOk('/api/card/deal', {
+        method: 'POST',
+        body: { throwSessionId: state.sessionId, category },
+    }, '카드 조회 실패');
+
+    if (!set) {
+        mark('cards', false);
+
+        return;
+    }
+
+    state.category = category;
+    renderCardSet(set);
+    mark('cards', (set.cards ?? []).length > 0);
+}
+
+function renderCardSet(set) {
+    setText(document, 'cardCategory', `${set.categoryLabel} (${set.category}) · ${set.regionName ?? '-'}`);
+    setText(document, 'cardMeta', `${set.poolSize ?? 0}곳 / ${set.totalCount ?? 0}건 / ${set.expiresInSeconds ?? 0}초`);
+
+    cardsBox.innerHTML = '';
+
+    (set.cards ?? []).forEach((card) => {
+        cardsBox.appendChild(renderCard(card));
+    });
+}
+
+/**
+ * 카드 한 장.
+ * 장소명·주소는 TourAPI 가 준 외부 문자열이라 innerHTML 을 쓰지 않는다.
+ */
+function renderCard(card) {
+    const place = card.place ?? {};
+
+    const item = document.createElement('div');
+    item.className = 'item item--compact';
+
+    const body = document.createElement('div');
+    body.className = 'item__body';
+
+    const title = document.createElement('div');
+    title.className = 'item__title';
+    title.textContent = `[${card.slot}] ${place.placeName ?? '-'}`;
+
+    const sub = document.createElement('div');
+    sub.className = 'item__sub';
+    sub.textContent = [place.address, place.distance == null ? null : `${place.distance}m`]
+        .filter(Boolean).join(' · ') || '-';
+
+    body.append(title, sub);
+
+    const button = document.createElement('button');
+    button.className = 'btn btn--text';
+    button.type = 'button';
+    button.textContent = card.rerollable ? '리롤' : '리롤 불가';
+    button.disabled = !card.rerollable;
+    button.addEventListener('click', () => rerollCard(card.slot));
+
+    item.append(body, button);
+
+    return item;
+}
+
+async function rerollCard(slot) {
+    const set = await expectOk('/api/card/reroll', {
+        method: 'POST',
+        body: { throwSessionId: state.sessionId, category: state.category, slot },
+    }, '리롤 실패');
+
+    if (!set) return;
+
+    renderCardSet(set);
+}
+
+/** 같은 슬롯을 연달아 두 번. 첫 번째는 통과, 두 번째는 거부가 정상이다 */
+async function rerollTwice() {
+    if (!state.category) {
+        toast('먼저 카테고리를 골라 카드를 받아 주세요.', 'error');
+
+        return;
+    }
+
+    const body = { throwSessionId: state.sessionId, category: state.category, slot: 0 };
+
+    const first = await call('/api/card/reroll', { method: 'POST', body });
+
+    if (!first.ok) {
+        rerollBox.dataset.state = 'fail';
+        rerollBox.textContent = `첫 리롤부터 거부됨 ✗ ${first.status} ${messageOf(first)}`;
+        mark('reroll', false);
+
+        return;
+    }
+
+    const second = await call('/api/card/reroll', { method: 'POST', body });
+
+    const blocked = !second.ok;
+
+    rerollBox.dataset.state = blocked ? 'pass' : 'fail';
+    rerollBox.textContent = blocked
+        ? `제한됨 ✓ 두 번째 리롤 → ${second.status} ${messageOf(second)}`
+        : '뚫림 ✗ 같은 슬롯을 두 번 바꿀 수 있습니다';
+
+    mark('reroll', blocked);
+
+    renderCardSet(second.ok ? second.body : first.body);
+}
+
+/** 카드를 다시 받아도 리롤 횟수가 되살아나면 안 된다 */
+async function redeal() {
+    if (!state.category) {
+        toast('먼저 카테고리를 골라 카드를 받아 주세요.', 'error');
+
+        return;
+    }
+
+    const set = await expectOk('/api/card/deal', {
+        method: 'POST',
+        body: { throwSessionId: state.sessionId, category: state.category },
+    }, '카드 조회 실패');
+
+    if (!set) return;
+
+    renderCardSet(set);
+
+    const slotZero = (set.cards ?? []).find((card) => card.slot === 0);
+
+    // 리롤을 쓰기 전이라면 true 가 정상이고, 쓴 뒤라면 false 여야 한다.
+    // 어느 쪽인지는 화면이 알 수 없으므로 판정하지 않고 값만 보여준다
+    rerollBox.dataset.state = 'info';
+    rerollBox.textContent = `다시 받음 → 0번 슬롯 rerollable = ${slotZero ? slotZero.rerollable : '카드 없음'}`
+        + ' (리롤을 쓴 뒤라면 false 여야 정상)';
+}
+
 /* ── 표시 ────────────────────────────────────────────── */
 
 function mark(name, passed) {
@@ -480,14 +680,18 @@ const actions = {
         deviceStore.reset();
         state.sessionId = null;
         state.drawn = null;
+        state.category = null;
         setText(document, 'deviceId', deviceStore.get());
         setText(document, 'sessionId', '-');
         setText(document, 'status', '-');
         setText(document, 'region', '-');
         roundsBox.innerHTML = '';
         placesBox.innerHTML = '';
+        cardsBox.innerHTML = '';
         setText(document, 'placeRegion', '-');
         setText(document, 'placeMeta', '-');
+        setText(document, 'cardCategory', '-');
+        setText(document, 'cardMeta', '-');
         toast('기기 ID 를 새로 발급했습니다.', 'info');
     },
     draw,
@@ -498,6 +702,10 @@ const actions = {
     'bypass-replay': bypass.replay,
     'bypass-coords': bypass.coords,
     places,
+    'arrange-s': () => checkArrange('S'),
+    'arrange-e': () => checkArrange('E'),
+    'reroll-twice': rerollTwice,
+    redeal,
 };
 
 document.querySelectorAll('[data-action]').forEach((button) => {
@@ -512,6 +720,23 @@ document.querySelectorAll('[data-action]').forEach((button) => {
                 console.error(error);
             }));
     }
+});
+
+// 요청이 끝날 때까지 버튼을 잠근다.
+// 연타하면 풀이 만들어지기 전에 두 번째 요청이 들어와 TourAPI 를 두 번 호출한다
+document.querySelectorAll('[data-category]').forEach((button) => {
+    button.addEventListener('click', async () => {
+        button.disabled = true;
+
+        try {
+            await dealCards(button.dataset.category);
+        } catch (error) {
+            toast('카드 요청 중 오류가 발생했습니다.', 'error');
+            console.error(error);
+        } finally {
+            button.disabled = false;
+        }
+    });
 });
 
 bindSubmit($('[data-form="search"]'), search);
