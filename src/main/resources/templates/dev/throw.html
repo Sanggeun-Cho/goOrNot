@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<!--/*
+  dev/throw.html
+  던지기 흐름 점검용 임시 화면. 제출 전에 삭제한다.
+  external.tourapi.dev-tools=true 일 때만 매핑된다.
+
+  실제 서비스 화면이 아니다. 핀 애니메이션·지도·카드 연출은 전부 없고,
+  API 가 기대대로 동작하는지만 확인한다.
+*/-->
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/base :: head('던지기 흐름 점검', 'dev')}"></head>
+
+<body data-auth="pending">
+
+<div class="app">
+    <header th:replace="~{layout/base :: header}"></header>
+
+    <main class="app__main app__main--wide">
+
+        <section class="page-head">
+            <h1 class="page-head__title">던지기 흐름 점검</h1>
+            <p class="page-head__desc">
+                세션 생성 → 던지기 → 갈래/말래 → 확정 을 실제 API 로 이어서 돌려봅니다.
+                TourAPI 를 호출하지 않으므로 일일 한도를 소모하지 않습니다.
+            </p>
+        </section>
+
+        <!--/* ── 체크리스트 ─────────────────────────────── */-->
+        <section class="card">
+            <h2 class="card__title">검증 시나리오</h2>
+
+            <ul class="check">
+                <li class="check__item" data-check="create">
+                    <span class="check__mark">·</span>
+                    <span class="check__body">
+                        <strong>① 세션 생성</strong>
+                        <span class="check__desc">RANDOM 세션이 IN_PROGRESS 로 만들어진다</span>
+                    </span>
+                </li>
+                <li class="check__item" data-check="draw">
+                    <span class="check__mark">·</span>
+                    <span class="check__body">
+                        <strong>② 던지기</strong>
+                        <span class="check__desc">호출할 때마다 지역이 달라진다 (가중치 랜덤)</span>
+                    </span>
+                </li>
+                <li class="check__item" data-check="again">
+                    <span class="check__mark">·</span>
+                    <span class="check__body">
+                        <strong>③ 말래 → 재추첨</strong>
+                        <span class="check__desc">이미 뽑힌 지역은 다음 후보에서 제외된다</span>
+                    </span>
+                </li>
+                <li class="check__item" data-check="confirm">
+                    <span class="check__mark">·</span>
+                    <span class="check__body">
+                        <strong>④ 갈래 → 확정</strong>
+                        <span class="check__desc">GO 기록을 남긴 지역으로 세션이 CONFIRMED 된다</span>
+                    </span>
+                </li>
+                <li class="check__item" data-check="bypass">
+                    <span class="check__mark">·</span>
+                    <span class="check__body">
+                        <strong>⑤ 추첨 우회 차단</strong>
+                        <span class="check__desc">던지지 않고 원하는 지역으로 확정하려 하면 거부된다</span>
+                    </span>
+                </li>
+                <li class="check__item" data-check="search">
+                    <span class="check__mark">·</span>
+                    <span class="check__body">
+                        <strong>⑥ 지역 검색</strong>
+                        <span class="check__desc">검색어로 시군구가 조회된다 (비로그인 허용)</span>
+                    </span>
+                </li>
+            </ul>
+        </section>
+
+        <!--/* ── 현재 세션 ──────────────────────────────── */-->
+        <section class="card">
+            <h2 class="card__title">현재 세션</h2>
+
+            <dl class="detail">
+                <dt>세션 ID</dt>
+                <dd data-field="sessionId">-</dd>
+                <dt>상태</dt>
+                <dd data-field="status">-</dd>
+                <dt>확정 지역</dt>
+                <dd data-field="region">-</dd>
+                <dt>기기 ID</dt>
+                <dd data-field="deviceId">-</dd>
+            </dl>
+
+            <div class="chips">
+                <button class="btn btn--text" type="button" data-action="create-random">RANDOM 세션 시작</button>
+                <button class="btn btn--text" type="button" data-action="reload">세션 새로고침</button>
+                <button class="btn btn--text" type="button" data-action="reset-device">기기 ID 새로 발급</button>
+            </div>
+
+            <p class="hint">
+                기기 ID 는 <code>localStorage</code> 에 저장되고 모든 요청에 <code>X-Device-Id</code> 로 붙습니다.
+                새로 발급하면 이전 익명 세션에는 접근할 수 없게 됩니다.
+            </p>
+        </section>
+
+        <!--/* ── 던지기 ─────────────────────────────────── */-->
+        <section class="card">
+            <h2 class="card__title">던지기</h2>
+
+            <dl class="detail">
+                <dt>이번 추첨 결과</dt>
+                <dd data-field="drawn">아직 던지지 않았습니다</dd>
+            </dl>
+
+            <div class="chips">
+                <button class="btn btn--text" type="button" data-action="draw">던지기</button>
+                <button class="btn btn--text" type="button" data-action="again">말래 (기록 후 재추첨)</button>
+                <button class="btn btn--text" type="button" data-action="go">갈래 (기록 후 확정)</button>
+            </div>
+
+            <p class="hint">
+                "갈래" 는 회차 기록(<code>POST /api/throw-round</code>)과
+                세션 확정(<code>PUT /api/throw-session</code>)을 이어서 호출합니다.
+            </p>
+
+            <h3 class="card__title">회차 기록</h3>
+            <div class="item-list item-list--compact" data-list="rounds"></div>
+        </section>
+
+        <!--/* ── 우회 시도 ──────────────────────────────── */-->
+        <section class="card">
+            <h2 class="card__title">추첨 우회 시도</h2>
+            <p class="page-head__desc">
+                아래 버튼은 전부 <strong>거부되어야 정상</strong>입니다. 성공하면 방어가 뚫린 것입니다.
+            </p>
+
+            <div class="chips">
+                <button class="btn btn--text" type="button" data-action="bypass-confirm">
+                    던지지 않고 강남(11680)으로 확정
+                </button>
+                <button class="btn btn--text" type="button" data-action="bypass-round">
+                    던진 결과와 다른 지역으로 회차 기록
+                </button>
+                <button class="btn btn--text" type="button" data-action="bypass-replay">
+                    같은 추첨 결과로 회차 두 번 기록
+                </button>
+                <button class="btn btn--text" type="button" data-action="bypass-coords">
+                    좌표만 0,0 으로 바꿔 기록
+                </button>
+            </div>
+
+            <div class="leak" data-field="bypass">아직 시도하지 않았습니다.</div>
+        </section>
+
+        <!--/* ── 지역 검색 ──────────────────────────────── */-->
+        <section class="card">
+            <h2 class="card__title">지역 검색</h2>
+
+            <form class="form form--inline" data-form="search" novalidate>
+                <div class="field">
+                    <label class="field__label" for="keyword">검색어</label>
+                    <input class="field__input" id="keyword" name="keyword" type="text"
+                           placeholder="속초 / 강원 / 강원 속초" autocomplete="off">
+                    <p class="field__error"></p>
+                </div>
+                <div class="field field--action">
+                    <button class="btn btn--primary" type="submit">검색</button>
+                </div>
+            </form>
+
+            <div class="code-list" data-list="regions"></div>
+
+            <p class="hint">
+                검색 결과를 누르면 그 지역으로 <code>SEARCH</code> 세션을 만듭니다 (즉시 확정).
+                지역 직접 검색은 보조 경로라 기능을 얇게 유지합니다.
+            </p>
+        </section>
+
+        <!--/* ── 원본 응답 ──────────────────────────────── */-->
+        <section class="card">
+            <h2 class="card__title">마지막 응답</h2>
+            <details class="raw" open>
+                <summary data-field="rawLabel">응답 없음</summary>
+                <pre data-field="raw">-</pre>
+            </details>
+        </section>
+
+    </main>
+
+    <footer th:replace="~{layout/base :: footer}"></footer>
+</div>
+
+<script type="module" th:src="@{/js/page/dev-throw.js}"></script>
+
+</body>
+</html>

@@ -9,6 +9,7 @@
  */
 
 import { tokenStore } from './token.js';
+import { deviceStore, DEVICE_HEADER } from './device.js';
 
 export const ACCESS_HEADER = 'Authorization';
 export const REFRESH_HEADER = 'Authorization-Refresh';
@@ -90,6 +91,10 @@ export async function apiFetch(path, { method = 'GET', body, query, auth = true,
         const accessToken = tokenStore.getAccess();
         if (accessToken) headers[ACCESS_HEADER] = accessToken;
     }
+
+    // 모든 요청에 붙인다. 비로그인 세션의 소유권 판단 기준이라 로그인 여부와 무관하게 필요하고,
+    // 호출부마다 붙이면 빠뜨린 곳에서 403 이 나므로 여기서 한 번에 처리한다
+    headers[DEVICE_HEADER] = deviceStore.get();
 
     const response = await fetch(buildUrl(path, query), {
         method,

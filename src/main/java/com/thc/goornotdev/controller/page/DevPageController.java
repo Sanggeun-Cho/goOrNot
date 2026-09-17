@@ -19,4 +19,14 @@ public class DevPageController {
     public String tourapi() {
         return "dev/tourapi";
     }
+
+    /**
+     * 던지기 흐름 점검 화면.
+     * 세션 생성 → 던지기 → 갈래/말래 → 확정 까지를 실제 API 로 이어서 돌려보고,
+     * 추첨을 우회하려는 요청이 제대로 거부되는지도 함께 확인한다.
+     */
+    @GetMapping("/throw")
+    public String throwFlow() {
+        return "dev/throw";
+    }
 }
