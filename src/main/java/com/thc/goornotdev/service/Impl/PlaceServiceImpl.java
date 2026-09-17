@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -53,11 +55,23 @@ public class PlaceServiceImpl implements PlaceService {
     private static final int MAX_NUM_OF_ROWS = 100;
 
     /**
-     * 정렬 기준.
+     * 정렬 기준 기본값.
      * O = 제목순 + 대표이미지가 있는 것만. 이미지 없는 카드가 섞이면 화면이 휑해져서 이걸 쓴다.
-     * → 조정 후보 : E(거리순, 이미지 보장 없음) / S(수정일순)
      */
     private static final String DEFAULT_ARRANGE = "O";
+
+    /**
+     * 허용하는 정렬 기준.
+     *
+     * A 제목순 / C 수정일순 / D 생성일순 / E 거리순,
+     * 대표이미지 보장 버전이 O(제목순) / Q(수정일순) / R(생성일순) / S(거리순).
+     * 거리순 두 개(E, S)는 위치기반 조회에서만 의미가 있다.
+     *
+     * 허용 목록을 두는 이유는 취향이 아니라 비용이다.
+     * 목록에 없는 값이 그대로 나가면 TourAPI 가 파라미터 오류로 거절하는데,
+     * 그 실패 응답도 일일 한도에서 차감된다. 나가기 전에 여기서 막는다.
+     */
+    private static final Set<String> ALLOWED_ARRANGE = Set.of("A", "C", "D", "E", "O", "Q", "R", "S");
 
     private final TourApiClient tourApiClient;
     private final RegionCatalog regionCatalog;
@@ -72,11 +86,12 @@ public class PlaceServiceImpl implements PlaceService {
         int numOfRows = (param.getNumOfRows() == null || param.getNumOfRows() <= 0)
                 ? DEFAULT_NUM_OF_ROWS : Math.min(param.getNumOfRows(), MAX_NUM_OF_ROWS);
         int pageNo = (param.getPageNo() == null || param.getPageNo() <= 0) ? 1 : param.getPageNo();
+        String arrange = arrangeOf(param);
 
         // TourAPI 는 X 가 경도, Y 가 위도다. 순서를 뒤집으면 엉뚱한 바다 한가운데를 찾는다
         TourApiDto.ListResult result = tourApiClient.locationBasedList(
                 region.lng(), region.lat(), radius, numOfRows, pageNo,
-                DEFAULT_ARRANGE, param.getContentTypeId());
+                arrange, param.getContentTypeId());
 
         // 시골 시군구는 기본 반경 안에 등록된 관광지가 없을 수 있다. 빈 화면 대신 한 번 더 넓혀본다
         if (result.getItems().isEmpty() && radius < FALLBACK_RADIUS && pageNo == 1) {
@@ -85,7 +100,7 @@ public class PlaceServiceImpl implements PlaceService {
             radius = FALLBACK_RADIUS;
             result = tourApiClient.locationBasedList(
                     region.lng(), region.lat(), radius, numOfRows, pageNo,
-                    DEFAULT_ARRANGE, param.getContentTypeId());
+                    arrange, param.getContentTypeId());
         }
 
         return PlaceDto.ListResDto.builder()
@@ -122,6 +137,28 @@ public class PlaceServiceImpl implements PlaceService {
 
         // 상한을 넘겨 보내면 TourAPI 가 파라미터 오류로 거절한다. 넘어오면 깎아서 보낸다
         return Math.min(param.getRadius(), MAX_RADIUS);
+    }
+
+    /**
+     * 정렬 기준 결정.
+     *
+     * 반경·건수와 달리 깎아서 보내지 않고 거절한다.
+     * 숫자는 "가까운 값" 으로 보정하는 게 사용자 의도에 가깝지만,
+     * 정렬 코드는 틀리면 의도를 추측할 방법이 없다. 조용히 다른 정렬로 바꿔 내려주면
+     * 화면은 멀쩡해 보이는데 결과만 다른, 찾기 어려운 버그가 된다.
+     */
+    private String arrangeOf(PlaceDto.ListReqDto param) {
+        if (param.getArrange() == null || param.getArrange().isBlank()) {
+            return DEFAULT_ARRANGE;
+        }
+
+        String arrange = param.getArrange().trim().toUpperCase(Locale.ROOT);
+
+        if (!ALLOWED_ARRANGE.contains(arrange)) {
+            throw new InvalidRequestException("지원하지 않는 정렬 기준입니다 : " + param.getArrange());
+        }
+
+        return arrange;
     }
 
     /**

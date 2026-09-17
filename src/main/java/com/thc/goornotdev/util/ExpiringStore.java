@@ -120,6 +120,28 @@ public class ExpiringStore<K, V> {
         return (entry == null || entry.expired(Instant.now())) ? null : entry.value();
     }
 
+    /**
+     * 남은 수명. 없거나 만료됐으면 null.
+     *
+     * 화면에 "이 결과를 언제까지 이어서 쓸 수 있는가" 를 알려주기 위한 값이다.
+     * get() 과 달리 값 자체를 꺼내지 않으므로, 값이 무거울 때 수명만 확인할 수 있다.
+     */
+    public Duration remaining(K key) {
+        if (key == null) {
+            return null;
+        }
+
+        Entry<V> entry = store.get(key);
+
+        if (entry == null) {
+            return null;
+        }
+
+        Instant now = Instant.now();
+
+        return entry.expired(now) ? null : Duration.between(now, entry.expiresAt());
+    }
+
     public void remove(K key) {
         if (key != null) {
             store.remove(key);

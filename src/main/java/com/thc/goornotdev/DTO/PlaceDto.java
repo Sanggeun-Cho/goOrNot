@@ -38,6 +38,14 @@ public class PlaceDto {
          */
         String contentTypeId;
 
+        /**
+         * 정렬 기준. null 이면 서버 기본값(대표이미지 보장 · 제목순).
+         *
+         * 값을 그대로 TourAPI 로 흘리지 않고 서비스에서 허용 목록과 대조한다.
+         * 아무 문자나 통과시키면 파라미터 오류 응답을 받느라 일일 한도만 깎인다.
+         */
+        String arrange;
+
         /** 검색 반경(m). null 이면 서버 기본값 */
         Integer radius;
 
