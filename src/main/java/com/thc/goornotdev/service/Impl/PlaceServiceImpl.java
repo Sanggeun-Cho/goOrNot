@@ -44,6 +44,15 @@ public class PlaceServiceImpl implements PlaceService {
     private static final int DEFAULT_NUM_OF_ROWS = 20;
 
     /**
+     * 한 번에 가져올 수 있는 최대 건수.
+     *
+     * 이 값이 없으면 numOfRows=100000 같은 요청이 그대로 TourAPI 로 나간다.
+     * 일일 한도를 쓰는 API 라 응답이 커지는 문제보다 한도가 한 번에 녹는 쪽이 더 위험하다.
+     * 화면은 20건 단위로 페이징하므로 100 이면 충분하다
+     */
+    private static final int MAX_NUM_OF_ROWS = 100;
+
+    /**
      * 정렬 기준.
      * O = 제목순 + 대표이미지가 있는 것만. 이미지 없는 카드가 섞이면 화면이 휑해져서 이걸 쓴다.
      * → 조정 후보 : E(거리순, 이미지 보장 없음) / S(수정일순)
@@ -58,8 +67,10 @@ public class PlaceServiceImpl implements PlaceService {
         RegionCatalog.Region region = resolveRegion(param);
 
         int radius = radiusOf(param);
+        // 반경과 같은 이유로 상한을 깎아서 보낸다. 거절하지 않고 조정하는 쪽을 택한 건
+        // 페이징을 크게 잡은 화면이 에러 없이 동작해야 하기 때문이다
         int numOfRows = (param.getNumOfRows() == null || param.getNumOfRows() <= 0)
-                ? DEFAULT_NUM_OF_ROWS : param.getNumOfRows();
+                ? DEFAULT_NUM_OF_ROWS : Math.min(param.getNumOfRows(), MAX_NUM_OF_ROWS);
         int pageNo = (param.getPageNo() == null || param.getPageNo() <= 0) ? 1 : param.getPageNo();
 
         // TourAPI 는 X 가 경도, Y 가 위도다. 순서를 뒤집으면 엉뚱한 바다 한가운데를 찾는다

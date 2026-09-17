@@ -16,6 +16,7 @@ const $ = (selector) => document.querySelector(selector);
 const roundsBox = $('[data-list="rounds"]');
 const regionsBox = $('[data-list="regions"]');
 const bypassBox = $('[data-field="bypass"]');
+const placesBox = $('[data-list="places"]');
 
 /** 화면이 들고 있는 상태. 서버가 진실이고 이건 표시용 사본이다 */
 const state = {
@@ -317,7 +318,7 @@ const bypass = {
 
         bypassBox.dataset.state = overwritten ? 'pass' : 'fail';
         bypassBox.textContent = overwritten
-            ? `차단됨 ✓ 좌표 바꿔치기 → 서버가 ${round.lat}, ${round.lng} 로 덮어썼습니다`
+            ? `덮어씀 ✓ 좌표 바꿔치기 → 요청은 통과했지만 서버가 ${round.lat}, ${round.lng} 로 되돌렸습니다`
             : `뚫림 ✗ 좌표 바꿔치기 → ${round.lat}, ${round.lng} 가 그대로 저장됐습니다`;
 
         mark('bypass', overwritten);
@@ -372,6 +373,86 @@ async function createSearchSession(region) {
     await reloadSession();
 }
 
+/* ── 주변 장소 ───────────────────────────────────────── */
+
+/**
+ * 확정 지역 주변 장소 조회.
+ *
+ * 이 화면에서 유일하게 TourAPI 일일 한도를 쓰는 호출이라 버튼을 눌렀을 때만 나간다.
+ * 좌표는 보내지 않는다. 지역 코드만 넘기고 서버가 카탈로그 좌표로 조회한다.
+ */
+async function places() {
+    if (!state.sessionId) {
+        toast('먼저 세션을 만들어 주세요.', 'error');
+
+        return;
+    }
+
+    const session = await expectOk('/api/throw-session', {
+        query: { id: state.sessionId },
+    }, '세션 조회 실패');
+
+    if (!session) return;
+
+    if (!session.regionCode) {
+        toast('지역이 확정된 세션이 아닙니다. "갈래" 로 확정하거나 검색으로 만들어 주세요.', 'error');
+
+        return;
+    }
+
+    const result = await expectOk('/api/place/list', {
+        query: { regionCode: session.regionCode },
+    }, '장소 조회 실패 (로그인 상태를 확인하세요)');
+
+    if (!result) {
+        mark('places', false);
+
+        return;
+    }
+
+    setText(document, 'placeRegion', `${result.regionName} (${result.regionCode}) ${result.lat}, ${result.lng}`);
+    setText(document, 'placeMeta', `${result.radius}m / ${result.totalCount ?? 0}건`);
+
+    renderPlaces(result.places ?? []);
+    mark('places', (result.places ?? []).length > 0);
+}
+
+/**
+ * 장소 카드 렌더링.
+ *
+ * innerHTML 을 쓰지 않는다. 장소명·주소는 TourAPI 가 준 외부 문자열이라
+ * 따옴표나 태그가 섞여 들어오면 그대로 실행될 수 있다.
+ */
+function renderPlaces(list) {
+    placesBox.innerHTML = '';
+
+    list.forEach((place) => {
+        const item = document.createElement('div');
+        item.className = 'item item--compact';
+
+        const body = document.createElement('div');
+        body.className = 'item__body';
+
+        const title = document.createElement('div');
+        title.className = 'item__title';
+        title.textContent = place.placeName ?? '-';
+
+        const sub = document.createElement('div');
+        sub.className = 'item__sub';
+        sub.textContent = [place.address, place.distance == null ? null : `${place.distance}m`]
+            .filter(Boolean).join(' · ') || '-';
+
+        body.append(title, sub);
+
+        const badge = document.createElement('span');
+        badge.className = 'badge';
+        badge.textContent = place.contentTypeId ?? '-';
+
+        item.append(body, badge);
+        placesBox.appendChild(item);
+    });
+}
+
 /* ── 표시 ────────────────────────────────────────────── */
 
 function mark(name, passed) {
@@ -404,6 +485,9 @@ const actions = {
         setText(document, 'status', '-');
         setText(document, 'region', '-');
         roundsBox.innerHTML = '';
+        placesBox.innerHTML = '';
+        setText(document, 'placeRegion', '-');
+        setText(document, 'placeMeta', '-');
         toast('기기 ID 를 새로 발급했습니다.', 'info');
     },
     draw,
@@ -413,6 +497,7 @@ const actions = {
     'bypass-round': bypass.round,
     'bypass-replay': bypass.replay,
     'bypass-coords': bypass.coords,
+    places,
 };
 
 document.querySelectorAll('[data-action]').forEach((button) => {

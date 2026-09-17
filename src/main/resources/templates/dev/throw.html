@@ -72,6 +72,13 @@
                         <span class="check__desc">검색어로 시군구가 조회된다 (비로그인 허용)</span>
                     </span>
                 </li>
+                <li class="check__item" data-check="places">
+                    <span class="check__mark">·</span>
+                    <span class="check__body">
+                        <strong>⑦ 주변 장소 조회</strong>
+                        <span class="check__desc">확정 지역 좌표로 장소가 조회된다 (로그인 필수)</span>
+                    </span>
+                </li>
             </ul>
         </section>
 
@@ -130,7 +137,9 @@
         <section class="card">
             <h2 class="card__title">추첨 우회 시도</h2>
             <p class="page-head__desc">
-                아래 버튼은 전부 <strong>거부되어야 정상</strong>입니다. 성공하면 방어가 뚫린 것입니다.
+                앞의 세 개는 <strong>거부되어야 정상</strong>입니다.
+                마지막 좌표 바꿔치기만 <strong>요청은 통과하고 서버 값으로 덮어써져야 정상</strong>입니다 —
+                지역 코드가 맞으면 좌표는 카탈로그에서 다시 채우므로 거부할 이유가 없습니다.
             </p>
 
             <div class="chips">
@@ -172,6 +181,33 @@
             <p class="hint">
                 검색 결과를 누르면 그 지역으로 <code>SEARCH</code> 세션을 만듭니다 (즉시 확정).
                 지역 직접 검색은 보조 경로라 기능을 얇게 유지합니다.
+            </p>
+        </section>
+
+        <!--/* ── 주변 장소 ──────────────────────────────── */-->
+        <section class="card">
+            <h2 class="card__title">확정 지역 주변 장소</h2>
+            <p class="page-head__desc">
+                이 버튼만 <strong>TourAPI 일일 한도를 소모합니다.</strong> 필요할 때만 누르세요.
+                <code>/api/place/list</code> 는 로그인 필수라 비로그인 상태면 401 이 나야 정상입니다.
+            </p>
+
+            <dl class="detail">
+                <dt>조회 지역</dt>
+                <dd data-field="placeRegion">-</dd>
+                <dt>반경 / 전체 건수</dt>
+                <dd data-field="placeMeta">-</dd>
+            </dl>
+
+            <div class="chips">
+                <button class="btn btn--text" type="button" data-action="places">확정 지역 주변 장소 보기</button>
+            </div>
+
+            <div class="item-list item-list--compact" data-list="places"></div>
+
+            <p class="hint">
+                좌표는 요청에 넣지 않습니다. 지역 코드만 보내면 서버가
+                <code>regions.json</code> 의 확정 좌표로 조회합니다.
             </p>
         </section>
 
