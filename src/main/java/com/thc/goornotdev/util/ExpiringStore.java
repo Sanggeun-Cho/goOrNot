@@ -6,6 +6,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * TTL 이 붙은 인메모리 저장소.
@@ -37,14 +38,20 @@ public class ExpiringStore<K, V> {
     /**
      * 저장된 값 하나.
      * 바깥 타입 파라미터 V 를 가리지 않도록 이름을 T 로 둔다.
+     *
+     * seq 는 저장 순서다. 정리 순서를 정할 때 expiresAt 만으로는 부족해서 함께 둔다.
+     * Instant.now() 의 해상도보다 put 이 빠르면 여러 엔트리가 같은 시각을 갖게 되는데,
+     * 그때 동점 처리 순서가 ConcurrentHashMap 의 버킷 순서에 좌우되어
+     * 방금 넣은 값이 정리 대상이 되는 일이 실제로 생긴다.
      */
-    private record Entry<T>(T value, Instant expiresAt) {
+    private record Entry<T>(T value, Instant expiresAt, long seq) {
         boolean expired(Instant now) {
             return !now.isBefore(expiresAt);
         }
     }
 
     private final Map<K, Entry<V>> store = new ConcurrentHashMap<>();
+    private final AtomicLong sequence = new AtomicLong();
     private final Duration ttl;
     private final int maxEntries;
 
@@ -70,7 +77,7 @@ public class ExpiringStore<K, V> {
             return;
         }
 
-        store.put(key, new Entry<>(value, Instant.now().plus(ttl)));
+        store.put(key, new Entry<>(value, Instant.now().plus(ttl), sequence.incrementAndGet()));
 
         if (store.size() > maxEntries) {
             evict();
@@ -136,7 +143,13 @@ public class ExpiringStore<K, V> {
 
     /**
      * 상한 초과 시 청소.
-     * 만료된 것부터 지우고, 그래도 넘치면 만료가 임박한(= 가장 오래된) 순으로 잘라낸다.
+     * 만료된 것부터 지우고, 그래도 넘치면 먼저 저장된 순으로 잘라낸다.
+     *
+     * 정렬 기준이 expiresAt 이 아니라 seq 인 이유:
+     * 모든 엔트리가 같은 TTL 을 쓰므로 저장 순서와 만료 순서는 어차피 같다.
+     * 그런데 expiresAt 은 시계 해상도 때문에 동점이 생기고, 동점일 때 어떤 것이 잘릴지가
+     * 해시 버킷 순서에 달리게 된다. 그러면 방금 저장한 값이 잘려 나가
+     * "추첨 결과가 없다" 같은 오작동으로 이어진다. seq 는 항상 유일해서 순서가 확정된다.
      */
     private void evict() {
         Instant now = Instant.now();
@@ -150,7 +163,7 @@ public class ExpiringStore<K, V> {
         }
 
         List<K> oldest = store.entrySet().stream()
-                .sorted(Comparator.comparing(entry -> entry.getValue().expiresAt()))
+                .sorted(Comparator.comparingLong(entry -> entry.getValue().seq()))
                 .limit(overflow)
                 .map(Map.Entry::getKey)
                 .toList();
