@@ -4,6 +4,33 @@
  * 팔레트는 wireframes.svg 에서 쓰인 값을 그대로 가져왔다.
  * ========================================================= */
 
+/* ── 본문 서체 ───────────────────────────────────────────
+ * Pretendard (SIL Open Font License 1.1, 상업적 사용·재배포 자유).
+ * [2026-09-18] 토큰에는 'Pretendard' 가 적혀 있었는데 정작 폰트를 받아오는 줄이
+ *   없어서, 윈도우에서는 늘 맑은 고딕으로 떨어지고 있었다. 글자가 얇고 획이
+ *   흐려 보인 원인이 이거다.
+ *
+ * dynamic-subset 을 쓰는 이유: 한글 폰트는 통짜로 받으면 1MB 를 넘는다.
+ *   화면에 실제로 쓰인 글자가 든 조각만 골라 받으므로 수십 KB 로 끝난다.
+ *
+ * ⚠ 외부 CDN(jsDelivr)이라 폰트를 받을 때 접속 IP 가 그쪽에 남는다.
+ *   개인정보를 보내는 건 아니지만, 심사 환경에서 외부망이 막히면 서체만
+ *   맑은 고딕으로 돌아간다(레이아웃은 그대로). 제출 직전에 폰트 파일을
+ *   static/fonts/ 로 내려받아 self-host 로 바꾸는 편이 안전하다 — 기획안 13번.
+ */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+
+/* ── 로고 서체 ───────────────────────────────────────────
+ * Jua (주아체) — Google Fonts, SIL Open Font License 1.1.
+ * 획 끝이 둥글어 말을 거는 느낌이 난다. "갈래 말래" 라는 이름의 말투와 맞는다.
+ *
+ * ⚠ 앱 이름 딱 한 곳에만 쓴다. 본문까지 덮으면 글자 구분이 뭉개져 읽기가 나빠진다.
+ *
+ * Google Fonts 의 한글은 unicode-range 로 잘게 쪼개 내려주므로,
+ * 실제로 화면에 쓴 네 글자가 든 조각만 받아온다(수 KB).
+ */
+@import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
+
 /* ── 디자인 토큰 ─────────────────────────────────────── */
 :root {
     /* 색상 */
@@ -49,9 +76,14 @@
     --shadow-sm: 0 1px 2px rgba(44, 44, 42, .06);
     --shadow-md: 0 4px 16px rgba(44, 44, 42, .08);
 
-    /* 타이포 */
-    --font-sans: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Malgun Gothic',
-                 'Segoe UI', 'Apple SD Gothic Neo', sans-serif;
+    /* 타이포
+       Variable 폰트라 이름이 'Pretendard Variable' 이다. 못 받아왔을 때를 대비해
+       정적 버전('Pretendard')·시스템 폰트를 뒤에 계속 남겨 둔다. */
+    --font-sans: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont,
+                 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif;
+
+    /* 앱 이름 전용. 본문에는 쓰지 않는다 */
+    --font-display: 'Jua', var(--font-sans);
 
     /* 레이아웃 */
     --header-height: 56px;
@@ -70,10 +102,16 @@ body {
     margin: 0;
     font-family: var(--font-sans);
     font-size: 15px;
+    /* Pretendard 는 가변 폭이라 400 과 500 사이를 직접 고를 수 있다.
+       400 은 모바일에서 얇아 보이고 500 은 본문치고 무거워서 그 사이로 둔다.
+       가변 폰트를 못 받아온 경우에는 브라우저가 가장 가까운 400 으로 떨어뜨린다. */
+    font-weight: 450;
     line-height: 1.55;
+    letter-spacing: -.003em;
     color: var(--color-text);
     background: var(--color-bg);
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
     -webkit-tap-highlight-color: transparent;
 }
 
@@ -126,9 +164,13 @@ img, svg { display: block; max-width: 100%; }
 }
 
 .app-header__brand {
-    font-size: 1.05rem;
+    font-family: var(--font-display);
+    /* 주아체는 글자가 작아 보이는 편이라 본문 대비 한 단계 키운다 */
+    font-size: 1.22rem;
+    /* 주아체는 굵기가 하나뿐이라 이 값이 먹지 않는다.
+       폰트를 못 받아왔을 때 본문 서체가 대신 서므로 그때를 위해 남겨 둔다 */
     font-weight: 800;
-    letter-spacing: -.02em;
+    letter-spacing: 0;
     color: var(--color-text);
 }
 

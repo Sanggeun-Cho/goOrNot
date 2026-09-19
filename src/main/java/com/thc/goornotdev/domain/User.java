@@ -40,10 +40,18 @@ public class User extends AuditingFields {
     String name;
 
     /**
-     * 사용자 이메일 (Unique)
+     * 사용자 이메일 (Unique, 선택 입력)
+     *
+     * [2026-09-18] 필수 → 선택으로 내렸다.
+     * 비밀번호 찾기·알림 메일 같은 "이메일을 실제로 쓰는 기능" 이 아직 없어서,
+     * 받아두면 쓰지도 않는 개인정보를 보관만 하게 된다(개인정보보호법 제3조 최소수집).
+     * 회원가입 화면에서도 묻지 않는다. 메일을 쓰는 기능이 생기면 그때 다시 받는다.
+     *
+     * unique 는 유지한다. 나중에 받기 시작할 때 중복이 쌓여 있으면 곤란하다.
+     * (MySQL 유니크 인덱스는 NULL 이 여러 개 들어가는 것을 허용한다)
      */
     @Setter
-    @Column(nullable = false, unique = true)
+    @Column(unique = true)
     String email;
 
     /**
@@ -112,8 +120,10 @@ public class User extends AuditingFields {
         String tag = getId() + "_" + LocalDateTime.now().format(WITHDRAWN_SUFFIX);
 
         setUsername(WITHDRAWN_PREFIX + tag);
-        // .invalid 는 RFC 2606 이 예약한 TLD 라 실제로 메일이 발송될 수 없다
-        setEmail(WITHDRAWN_PREFIX + tag + "@invalid");
+
+        // 이메일은 덮어쓰지 않고 아예 비운다. 남겨 둘 이유가 없는 개인정보다.
+        // (유니크 제약은 NULL 을 여러 개 허용하므로 같은 메일로 재가입할 수 있다)
+        setEmail(null);
 
         // 남은 해시로 로그인할 수 없도록 비밀번호는 검증 불가능한 값으로 덮는다
         setPassword(UUID.randomUUID().toString());

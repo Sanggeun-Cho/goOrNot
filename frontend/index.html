@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: 노치 있는 기기에서 화면 끝까지 쓰고, 안전영역은 CSS 가 env() 로 잡는다 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#F1EFE8">
+    <meta name="description" content="정하지 말고 던져서 떠나는 국내 여행. 안 가본 지역이 나옵니다.">
+
+    <title>갈래 말래 — 던져서 떠나는 여행</title>
+
+    <!-- iOS 에서 홈 화면에 추가했을 때 주소창 없이 앱처럼 뜬다 (정식 PWA 설정은 2-9) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="갈래 말래">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+    <!--
+      아이콘도 CSS 토큰과 같은 이유로 번들에 넣지 않고 같은 오리진의 원본을 참조한다.
+      (static/favicon.ico · static/images/** — 기존 Thymeleaf 화면과 한 벌을 공유한다)
+
+      ⚠ 개발 서버는 여기 적힌 절대경로 앞에 base('/app/')를 붙인다. 그래서 vite.config.js 에
+        /favicon.ico · /images 와 함께 /app/favicon.ico · /app/images 프록시가 같이 있어야 한다.
+        (common.css 와 완전히 같은 함정이다. 빠뜨리면 개발에서만 404 가 난다)
+
+      icon-512 / icon-512-maskable 은 manifest 에서 쓴다. 여기서 링크하면 그냥 내려받기만 한다.
+    -->
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="192x192" href="/images/icon-192.png">
+    <link rel="apple-touch-icon" href="/images/apple-touch-icon-180.png">
+
+    <!--
+      디자인 토큰은 기존 화면과 같은 파일을 그대로 쓴다.
+      번들에 복사해 넣으면 두 벌이 되어 서로 어긋나므로, 같은 오리진의 원본을 참조한다.
+      (개발 서버에서는 vite.config.js 의 프록시가 Spring 으로 넘겨준다)
+    -->
+    <link rel="stylesheet" href="/css/common.css">
+
+    <!--
+      카카오맵 SDK 는 여기서 부르지 않는다.
+      JS 키는 어차피 브라우저로 내려가는 공개값이라 "숨긴다" 고는 할 수 없지만,
+      정적 번들에 박아 캐시되게 두는 것보다는 서버에서 받아 동적으로 붙이는 편이 낫다.
+      실제 방어선은 카카오 콘솔의 도메인 화이트리스트다. (lib/kakaoMap.js — 2-2)
+    -->
+</head>
+<body>
+
+<div id="root"></div>
+
+<script type="module" src="/src/main.jsx"></script>
+
+</body>
+</html>

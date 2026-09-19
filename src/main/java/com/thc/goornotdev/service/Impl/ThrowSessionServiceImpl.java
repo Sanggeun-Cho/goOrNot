@@ -39,6 +39,24 @@ public class ThrowSessionServiceImpl implements ThrowSessionService {
     // 클라이언트가 보낸 지역 정보를 서버 기준값으로 다시 해석하기 위한 카탈로그
     private final RegionCatalog regionCatalog;
 
+    /*
+     * TODO [제출 전] 전부 거절했을 때의 재던지기 쿨다운(약 30분) — [2026-09-19] 결정, 구현은 최종 제출 때.
+     *
+     * 왜 넣는가: 지금은 마음에 안 들면 무한히 다시 던질 수 있다. 그러면 "던져서 정한다" 가 아니라
+     * "원하는 곳이 나올 때까지 돌린다" 가 되어, 이 서비스의 핵심인 소외 지역 가중치 추첨이 무력해진다.
+     * 되돌리기 어렵다는 감각이 있어야 선택에 무게가 실린다.
+     *
+     * 어디서 막는가: 반드시 서버에서 막는다. 프론트 타이머는 새로고침 한 번이면 무너진다.
+     *   - 기준: 같은 소유자(userId 또는 deviceId)가 마지막으로 '버린' 세션의 시각
+     *   - 버렸다고 볼 조건: 던질 횟수를 전부 AGAIN 으로 소진했거나, 카드를 전부 거절한 경우
+     *   - 걸리면 이 메서드(RANDOM 세션 생성)에서 전용 예외를 던지고 남은 시간을 함께 내려준다
+     *
+     * ⚠ 검색(SEARCH)으로 시작하는 경로는 막지 않는다. 쿨다운은 추첨을 돌리는 것에 대한 제동이지
+     *   서비스 이용 자체를 멈추는 장치가 아니다. 다 막으면 심사 중에 서비스가 죽은 것처럼 보인다.
+     * ⚠ 카테고리는 전부 거절할 수 있는 화면이 아니므로 대상이 아니다(카드 거절만 해당).
+     * ⚠ 기간은 기획안 5번에 적고 이 코드와 같이 움직인다. 심사 시연 중에 걸리면 곤란하니
+     *   application.yml 설정값으로 빼서 시연 때 0 으로 둘 수 있게 한다.
+     */
     @Override
     @Transactional
     public DefaultDto.CreateResDto create(ThrowSessionDto.CreateReqDto param, Long reqUserId, String reqDeviceId) {

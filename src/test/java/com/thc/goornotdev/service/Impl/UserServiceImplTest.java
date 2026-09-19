@@ -72,6 +72,29 @@ class UserServiceImplTest {
     }
 
     @Test
+    @DisplayName("회원가입 - 이메일 없이 가입하면 중복 검사를 건너뛰고 null 로 저장된다")
+    void create_withoutEmail() {
+        UserDto.CreateReqDto param = UserDto.CreateReqDto.builder()
+                .username("tester")
+                .password("password123")
+                .name("조상근")
+                .build();
+
+        given(userRepository.existsByUsername("tester")).willReturn(false);
+        given(passwordEncoder.encode("password123")).willReturn("encodedPassword");
+        given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        userService.create(param, null);
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+
+        // 빈 문자열로 저장되면 유니크 제약 때문에 두 번째 가입자가 막힌다
+        assertThat(captor.getValue().getEmail()).isNull();
+        verify(userRepository, never()).existsByEmail(any());
+    }
+
+    @Test
     @DisplayName("회원가입 - 아이디가 중복되면 DuplicateDataException")
     void create_duplicateUsername() {
         given(userRepository.existsByUsername("tester")).willReturn(true);

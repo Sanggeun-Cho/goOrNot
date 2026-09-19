@@ -53,6 +53,82 @@ dependencies {
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
 }
 
+/* ── 프론트엔드(Vite + React) 빌드 연동 ──────────────────────────────
+ *
+ * 프론트를 별도 호스트에 올리지 않고 jar 안에 넣는다. 같은 오리진이라 CORS 설정도,
+ * 인증 필터 수정도 필요 없고 배포는 EC2 한 곳만 보면 된다.
+ *
+ * processResources 앞에 끼워 넣는 이유:
+ * Vite 가 결과물을 src/main/resources/static/app 으로 떨어뜨리므로, 리소스 복사보다
+ * 먼저 돌지 않으면 이번 빌드의 프론트가 jar 에 들어가지 않는다(직전 빌드 결과가 들어간다).
+ *
+ * 매 테스트마다 npm 이 도는 게 아니냐는 걱정은 inputs/outputs 로 막았다.
+ * src 와 설정 파일이 그대로면 Gradle 이 UP-TO-DATE 로 건너뛴다.
+ * 그래도 건너뛰고 싶으면 ./gradlew build -PskipFrontend
+ */
+def isWindows = System.getProperty('os.name').toLowerCase().contains('windows')
+def npm = isWindows ? 'npm.cmd' : 'npm'
+def frontendDir = file('frontend')
+def frontendOut = file('src/main/resources/static/app')
+
+tasks.register('installFrontend', Exec) {
+    group = 'frontend'
+    description = 'node_modules 가 없을 때만 의존성을 설치한다'
+
+    workingDir = frontendDir
+    commandLine npm, 'install'
+
+    inputs.file(file('frontend/package.json'))
+    outputs.dir(file('frontend/node_modules'))
+
+    // package.json 이 바뀌지 않았고 이미 설치돼 있으면 건너뛴다
+    onlyIf { !file('frontend/node_modules').exists() }
+}
+
+tasks.register('buildFrontend', Exec) {
+    group = 'frontend'
+    description = 'Vite 로 React 화면을 빌드해 static/app 에 떨어뜨린다'
+
+    dependsOn 'installFrontend'
+
+    workingDir = frontendDir
+    commandLine npm, 'run', 'build'
+
+    inputs.dir(file('frontend/src'))
+    inputs.file(file('frontend/index.html'))
+    inputs.file(file('frontend/vite.config.js'))
+    inputs.file(file('frontend/package.json'))
+
+    /*
+     * .env 계열도 입력이다.
+     *
+     * Vite 는 VITE_ 변수를 빌드 시점에 번들 안으로 치환해 넣는다. 즉 .env.local 이 바뀌면
+     * 결과물이 달라진다. 여기에 넣어두지 않으면 카카오 JS 키를 갈아끼워도 Gradle 이
+     * UP-TO-DATE 로 건너뛰어 옛 키가 박힌 번들이 그대로 배포된다.
+     * [2026-09-19] 실제로 키를 바꿨는데 반영이 안 되는 일이 있었다.
+     *
+     * 파일이 없어도 되도록 fileTree 로 잡는다(inputs.file 은 없으면 빌드가 깨진다).
+     */
+    inputs.files(fileTree(frontendDir) {
+        include '.env'
+        include '.env.*'
+    }).withPropertyName('frontendEnv')
+
+    outputs.dir(frontendOut)
+
+    onlyIf { !project.hasProperty('skipFrontend') }
+}
+
+tasks.named('processResources') {
+    dependsOn 'buildFrontend'
+}
+
+tasks.named('clean') {
+    // Vite 산출물은 build/ 밖(resources 안)에 있어서 clean 이 건드리지 않는다.
+    // 남겨두면 지운 화면의 옛 번들이 계속 jar 에 실린다
+    delete frontendOut
+}
+
 tasks.named('test') {
     useJUnitPlatform()
 

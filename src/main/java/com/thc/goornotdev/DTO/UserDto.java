@@ -32,13 +32,23 @@ public class UserDto {
         @Size(min = 4, max = 20, message = "아이디는 4~20자여야 합니다.")
         String username; // 로그인 ID
 
+        /**
+         * 최대 길이를 두는 이유는 두 가지다.
+         *  1. BCrypt 는 72바이트까지만 보고 나머지를 버린다. 그보다 긴 비밀번호는
+         *     뒷부분이 검증에 쓰이지 않아 사용자가 착각하게 된다.
+         *  2. 길이 제한이 없으면 수 MB 짜리 문자열을 보내 해시 계산을 강제하는
+         *     느린 요청(DoS)을 만들 수 있다.
+         */
         @NotBlank(message = "비밀번호는 필수입니다.")
-        @Size(min = 8, message = "비밀번호는 8자 이상이어야 합니다.")
+        @Size(min = 8, max = 64, message = "비밀번호는 8~64자여야 합니다.")
         String password;
 
         String name; // 사용자 실명
 
-        @NotBlank(message = "이메일은 필수입니다.")
+        /**
+         * 선택 입력. 실제로 메일을 쓰는 기능이 없어 회원가입 화면에서는 묻지 않는다.
+         * (User.email 주석 참고 — 값이 없으면 null 로 저장한다)
+         */
         @Email(message = "올바른 이메일 형식이 아닙니다.")
         String email;
 
@@ -46,7 +56,18 @@ public class UserDto {
         String birth;
 
         public User toEntity(){
-            return User.of(getUsername(), getPassword(), getName(), getEmail(), getPhone(), getBirth());
+            return User.of(getUsername(), getPassword(), getName(), blankToNull(getEmail()),
+                    getPhone(), getBirth());
+        }
+
+        /**
+         * 빈 문자열을 NULL 로 바꾼다.
+         *
+         * email 은 유니크 컬럼이라 "" 로 저장하면 두 번째 가입자부터 중복으로 막힌다.
+         * "값이 없다" 는 상태는 한 가지 방법(NULL)으로만 표현한다.
+         */
+        private static String blankToNull(String value) {
+            return (value == null || value.isBlank()) ? null : value;
         }
     }
 
@@ -56,7 +77,8 @@ public class UserDto {
      */
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
     public static class UpdateReqDto extends DefaultDto.UpdateReqDto {
-        @Size(min = 8, message = "비밀번호는 8자 이상이어야 합니다.")
+        // 상한을 두는 이유는 CreateReqDto.password 주석 참고 (BCrypt 72바이트 절삭 + 긴 입력 방어)
+        @Size(min = 8, max = 64, message = "비밀번호는 8~64자여야 합니다.")
         String password;
 
         String name;

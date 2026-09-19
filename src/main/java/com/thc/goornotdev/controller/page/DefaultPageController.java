@@ -17,4 +17,25 @@ public class DefaultPageController {
     public String index() {
         return "index";
     }
+
+    /**
+     * React SPA 진입점.
+     *
+     * 라우팅은 브라우저(react-router)가 하지만, 사용자가 /app/login 을 주소창에 직접 치거나
+     * 새로고침하면 그 요청은 서버로 온다. 서버에는 그런 경로가 없으므로 404 가 난다.
+     * 그래서 SPA 경로들을 index.html 로 포워딩해 준다.
+     *
+     * 와일드카드(/app/**)를 쓰지 않는 이유:
+     * 번들 파일(/app/assets/*.js)까지 index.html 로 덮어써서 화면이 통째로 안 뜬다.
+     * 화면이 늘어날 때마다 여기에 경로를 한 줄씩 추가한다.
+     * (App.jsx 의 Route 경로 앞에 '/app' 을 붙인 것과 같아야 한다)
+     *
+     * /app/category/* 처럼 한 단계짜리 와일드카드는 써도 된다.
+     * '*' 는 슬래시를 넘지 않아서 /app/assets/... 를 삼킬 염려가 없다.
+     */
+    @GetMapping({"/app", "/app/search", "/app/login", "/app/signup", "/app/trips",
+            "/app/privacy", "/app/category/*"})
+    public String app() {
+        return "forward:/app/index.html";
+    }
 }

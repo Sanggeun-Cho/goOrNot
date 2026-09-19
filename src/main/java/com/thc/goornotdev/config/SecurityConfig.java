@@ -75,6 +75,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/region/**").permitAll()
                         // 정적 리소스는 인증 대상이 아니다
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
+                        // React SPA(Vite base=/app/). 번들과 index.html 자체는 인증 대상이 아니고,
+                        // 화면 안에서 호출하는 API 는 기존 규칙(@PreAuthorize + anyRequest)이 그대로 막는다
+                        .requestMatchers("/app/**").permitAll()
                         // 화면은 모두 열어두고, 로그인 필요 여부는 프론트 가드와 API 권한으로 판단한다
                         .requestMatchers("/", "/index", "/user/**").permitAll()
                         // TourAPI 연동 점검용 임시 화면. HTML 만 열어주고 실제 호출(/api/dev/**)은

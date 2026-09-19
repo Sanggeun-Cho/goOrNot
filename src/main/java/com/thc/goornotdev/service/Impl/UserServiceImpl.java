@@ -14,6 +14,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,7 +33,9 @@ public class UserServiceImpl implements UserService {
         if (userRepository.existsByUsername(param.getUsername())) {
             throw new DuplicateDataException("username : " + param.getUsername());
         }
-        if (userRepository.existsByEmail(param.getEmail())) {
+        // 이메일은 선택 입력이다. 안 받은 경우에는 중복을 볼 것도 없다
+        // (빈 값을 그대로 넘기면 existsByEmail 이 항상 false 라 "" 가 여러 건 저장될 수 있다)
+        if (StringUtils.hasText(param.getEmail()) && userRepository.existsByEmail(param.getEmail())) {
             throw new DuplicateDataException("email : " + param.getEmail());
         }
 
