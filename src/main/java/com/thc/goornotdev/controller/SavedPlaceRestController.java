@@ -14,10 +14,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * 하트로 저장한 장소.
+ * 여행 중에 표시해 둔 장소 (여기 간다 / 하트).
  *
  * 회원 계정에 귀속되는 데이터라 전 구간 로그인 필수다 (SecurityConfig permitAll 대상이 아님).
- * 수정 엔드포인트는 없다 (저장 / 해제만 존재).
+ *
+ * 수정 엔드포인트는 없다. 표시를 켜고 끄는 일은 POST 하나로 처리한다 —
+ * 클라이언트가 "이 장소의 visited 를 켠다" 만 보내면 행이 있든 없든 서버가 알아서 맞춘다.
  */
 @RequiredArgsConstructor
 @RequestMapping("/api/saved-place")

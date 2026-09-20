@@ -134,6 +134,32 @@ public class CardServiceImpl implements CardService {
         return toSet(session, category, key, pool);
     }
 
+    @Override
+    public void endRound(Long throwSessionId, String category) {
+        if (throwSessionId == null) {
+            return;
+        }
+
+        ThrowCategory found = ThrowCategory.find(category);
+
+        // SavedPlace.category 는 자유 문자열이다. 못 알아보는 값이 와도 버릴 풀이 없을 뿐이다
+        if (found == null) {
+            return;
+        }
+
+        /*
+         * 소유권을 확인하지 않는다.
+         *
+         * 이 메서드는 컨트롤러에 노출되지 않고 SavedPlaceServiceImpl 이 저장을 끝낸 뒤에만 부른다.
+         * 그 저장이 이미 세션 소유권을 검증했으므로 같은 검증을 두 번 하는 셈이고,
+         * 검증을 여기 한 번 더 두면 "남의 세션" 을 이유로 예외가 나서 끝난 저장이 뒤집힌다.
+         *
+         * ⚠ 외부에서 직접 부를 수 있게 노출한다면 그때는 소유권 검증이 필요하다.
+         *   세션 ID 만 알면 남의 카드를 지울 수 있게 되기 때문이다.
+         */
+        pools.remove(poolKey(throwSessionId, found));
+    }
+
     /* ── 내부 ────────────────────────────────────────────── */
 
     /**

@@ -11,9 +11,9 @@ public interface SavedPlaceRepository extends JpaRepository<SavedPlace, Long> {
     List<SavedPlace> findByThrowSessionIdAndDeletedFalse(Long throwSessionId);
 
     /**
-     * 중복 저장 검사용. deleted 조건을 일부러 걸지 않는다.
-     * UNIQUE(user_id, content_id) 는 Soft Delete 된 행도 차지하고 있어서
+     * 표시를 켜고 끌 때 쓸 기존 행 조회. deleted 조건을 일부러 걸지 않는다.
+     * UNIQUE(user_id, throw_session_id, content_id) 는 Soft Delete 된 행도 차지하고 있어서
      * 삭제 여부와 무관하게 행의 존재 자체를 봐야 한다.
      */
-    Optional<SavedPlace> findByUserIdAndContentId(Long userId, String contentId);
+    Optional<SavedPlace> findByUserIdAndThrowSessionIdAndContentId(Long userId, Long throwSessionId, String contentId);
 }

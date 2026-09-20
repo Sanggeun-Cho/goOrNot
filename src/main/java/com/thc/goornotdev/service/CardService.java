@@ -41,4 +41,22 @@ public interface CardService {
      * @return 교체가 반영된 카드 세트 전체
      */
     CardDto.SetResDto reroll(CardDto.RerollReqDto param, Long reqUserId, String reqDeviceId);
+
+    /**
+     * 이번 판을 끝낸다. 깔려 있던 카드와 남은 리롤을 버린다.
+     *
+     * [2026-09-19 확정] 카테고리는 일회성이다.
+     * "오늘 뭐하지 → 관광지 → 리롤 → 여기 갈래" 한 번이 한 판이고, 다음 날 같은 카테고리를
+     * 다시 열면 새 카드로 다시 추천받아야 한다. 풀이 30분 살아 있는 건 "고민하는 동안
+     * 카드가 안 바뀐다" 를 위한 것이지 판을 이어가기 위한 게 아니다.
+     *
+     * 그래서 "여기 간다" 가 켜지는 순간 그 카테고리의 풀을 버린다. 다음 deal 은 새 풀을 만든다.
+     *
+     * 검증하지 않는다. 이건 캐시 무효화라 대상이 없거나 카테고리 문자열을 못 알아봐도
+     * 조용히 넘어간다 — 여기서 예외를 던지면 정상적으로 끝난 저장이 400 으로 뒤집힌다.
+     *
+     * @param throwSessionId 세션 ID
+     * @param category       카테고리 이름 (SavedPlace 에 저장된 자유 문자열이라 파싱 실패를 허용한다)
+     */
+    void endRound(Long throwSessionId, String category);
 }

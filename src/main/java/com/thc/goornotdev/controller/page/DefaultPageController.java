@@ -8,14 +8,22 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @Controller
 public class DefaultPageController {
     /**
-     * 진입 화면.
-     * Access Token 을 요청 헤더로 주고받는 구조라 브라우저가 주소창으로 들어올 때는
-     * 서버가 로그인 여부를 알 수 없다. 따라서 화면은 항상 그대로 내려주고,
-     * 로그인/마이페이지 분기는 프론트(static/js/page/index.js)에서 처리한다.
+     * 진입 화면 → 실제 서비스(/app)로 넘긴다.
+     *
+     * [2026-09-20] 원래 여기서 1차 Thymeleaf 화면(templates/index.html)을 내려줬다.
+     * 심사위원은 제출한 URL 을 그냥 한 번 누르고, 그때 뜬 화면이 곧 첫인상이 된다.
+     * 실제 서비스는 React 쪽(/app)이므로 루트는 거기로 보낸다.
+     *
+     * 301(영구)이 아니라 302(임시)인 이유:
+     * redirect: 접두사의 기본값이 302 다. 301 로 바꾸면 브라우저가 캐시에 박아버려서
+     * 되돌릴 때 사용자 브라우저를 일일이 비워야 한다. 루트 경로는 그럴 위험을 질 이유가 없다.
+     *
+     * Thymeleaf 화면 파일 자체는 그대로 둔다. 지우는 건(기획안 C안) 제출 이틀 전에 할 일이 아니고,
+     * 남겨둬도 이제 여기로 들어오는 길이 없다. /user/** 는 직접 주소를 친 경우에만 열린다.
      */
     @GetMapping({"/", "/index"})
     public String index() {
-        return "index";
+        return "redirect:/app";
     }
 
     /**
@@ -34,7 +42,7 @@ public class DefaultPageController {
      * '*' 는 슬래시를 넘지 않아서 /app/assets/... 를 삼킬 염려가 없다.
      */
     @GetMapping({"/app", "/app/search", "/app/login", "/app/signup", "/app/trips",
-            "/app/privacy", "/app/category/*"})
+            "/app/me", "/app/wishlist", "/app/privacy", "/app/category/*", "/app/cards/*/*"})
     public String app() {
         return "forward:/app/index.html";
     }

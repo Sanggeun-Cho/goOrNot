@@ -9,7 +9,22 @@
 
     <title>갈래 말래 — 던져서 떠나는 여행</title>
 
-    <!-- iOS 에서 홈 화면에 추가했을 때 주소창 없이 앱처럼 뜬다 (정식 PWA 설정은 2-9) -->
+    <!--
+      [2026-09-19] PWA 매니페스트.
+      "홈 화면에 띄웠을 때가 기본 상태" 라고 기획에 적어 둔 이상, 안드로이드에서
+      설치 배너가 뜨려면 매니페스트가 있어야 한다. 없으면 크롬은 그냥 북마크로 처리한다.
+
+      static/ 에 두고 절대경로로 참조하는 이유는 common.css·아이콘과 같다 —
+      번들에 사본을 만들지 않고 같은 오리진의 원본 하나만 본다.
+      ⚠ 개발 서버에서는 base('/app/')가 앞에 붙으므로 vite.config.js 에
+        /manifest.webmanifest 와 /app/manifest.webmanifest 프록시가 둘 다 있어야 한다.
+
+      scope/start_url 이 '/app' 인 이유: 실제 서비스 화면이 거기 있다.
+      루트(/)에는 아직 1차 Thymeleaf 화면이 남아 있어서 시작점으로 쓸 수 없다.
+    -->
+    <link rel="manifest" href="/manifest.webmanifest">
+
+    <!-- iOS 는 매니페스트의 display 를 무시한다. 아래 메타가 있어야 주소창 없이 뜬다 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="갈래 말래">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">

@@ -4,10 +4,11 @@ import com.thc.goornotdev.DTO.DefaultDto;
 import com.thc.goornotdev.DTO.SavedPlaceDto;
 import com.thc.goornotdev.DTO.ThrowSessionDto;
 import com.thc.goornotdev.domain.SavedPlace;
-import com.thc.goornotdev.exception.DuplicateDataException;
+import com.thc.goornotdev.exception.InvalidRequestException;
 import com.thc.goornotdev.exception.NoMatchingDataException;
 import com.thc.goornotdev.mapper.SavedPlaceMapper;
 import com.thc.goornotdev.repository.SavedPlaceRepository;
+import com.thc.goornotdev.service.CardService;
 import com.thc.goornotdev.service.ThrowSessionService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,14 +44,19 @@ class SavedPlaceServiceImplTest {
     @Mock
     private ThrowSessionService throwSessionService;
 
+    @Mock
+    private CardService cardService;
+
     @InjectMocks
     private SavedPlaceServiceImpl savedPlaceService;
 
+    /** 기본 요청은 "여기 간다" 를 켜는 것. 하트만 바꿀 때는 visited 를 null 로 두고 부른다 */
     private SavedPlaceDto.CreateReqDto createReqDto() {
         return SavedPlaceDto.CreateReqDto.builder()
                 .throwSessionId(1L)
                 .contentId("content-1")
-                .category("관광지")
+                .visited(true)
+                .category("ATTRACTION")
                 .placeName("경복궁")
                 .address("서울 종로구")
                 .lat(37.5)
@@ -58,19 +64,22 @@ class SavedPlaceServiceImplTest {
                 .build();
     }
 
+    /** 이미 하트만 눌러둔 행 */
     private SavedPlace savedPlace() {
-        SavedPlace place = SavedPlace.of(7L, "content-1", 1L, "관광지", "경복궁", "서울 종로구", 37.5, 127.0);
+        SavedPlace place = SavedPlace.of(7L, "content-1", 1L, "ATTRACTION", "경복궁", "서울 종로구", 37.5, 127.0,
+                false, true);
         place.setId(100L);
         place.setDeleted(false);
         return place;
     }
 
     @Test
-    @DisplayName("저장 - 처음 저장하는 장소는 새로 INSERT 된다")
+    @DisplayName("저장 - 처음 표시하는 장소는 새로 INSERT 된다")
     void create_newPlace() {
         given(throwSessionService.detail(any(), any(), any()))
                 .willReturn(ThrowSessionDto.DetailResDto.builder().id(1L).userId(7L).build());
-        given(savedPlaceRepository.findByUserIdAndContentId(7L, "content-1")).willReturn(Optional.empty());
+        given(savedPlaceRepository.findByUserIdAndThrowSessionIdAndContentId(7L, 1L, "content-1"))
+                .willReturn(Optional.empty());
         given(savedPlaceRepository.save(any(SavedPlace.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -80,44 +89,115 @@ class SavedPlaceServiceImplTest {
         verify(savedPlaceRepository).save(captor.capture());
         assertThat(captor.getValue().getUserId()).isEqualTo(7L);
         assertThat(captor.getValue().getContentId()).isEqualTo("content-1");
+        assertThat(captor.getValue().isVisited()).isTrue();
+        assertThat(captor.getValue().isWished()).isFalse();
     }
 
     @Test
-    @DisplayName("저장 - 이미 저장한 장소를 또 저장하면 DuplicateDataException")
-    void create_duplicateContentId() {
+    @DisplayName("저장 - 찜해 둔 곳에 '여기 간다' 를 켜도 중복이 아니다 (두 표시는 독립)")
+    void create_marksVisitedOnWishedRow() {
+        SavedPlace place = savedPlace();   // wished = true
+
         given(throwSessionService.detail(any(), any(), any()))
                 .willReturn(ThrowSessionDto.DetailResDto.builder().id(1L).userId(7L).build());
-        given(savedPlaceRepository.findByUserIdAndContentId(7L, "content-1"))
-                .willReturn(Optional.of(savedPlace()));
+        given(savedPlaceRepository.findByUserIdAndThrowSessionIdAndContentId(7L, 1L, "content-1"))
+                .willReturn(Optional.of(place));
+        given(savedPlaceRepository.save(any(SavedPlace.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
 
-        assertThatThrownBy(() -> savedPlaceService.create(createReqDto(), 7L, DEVICE_ID))
-                .isInstanceOf(DuplicateDataException.class)
-                .hasMessageContaining("content-1");
+        DefaultDto.CreateResDto result = savedPlaceService.create(createReqDto(), 7L, DEVICE_ID);
 
-        verify(savedPlaceRepository, never()).save(any(SavedPlace.class));
+        assertThat(place.isVisited()).isTrue();
+        assertThat(place.isWished()).isTrue();     // 보내지 않은 플래그는 그대로
+        assertThat(place.getDeleted()).isFalse();
+        assertThat(result.getId()).isEqualTo(100L);
     }
 
     @Test
-    @DisplayName("저장 - 해제했던 장소를 다시 저장하면 기존 행을 되살린다 (UNIQUE 충돌 방지)")
+    @DisplayName("저장 - 표시가 하나도 남지 않으면 Soft Delete 된다")
+    void create_softDeletesWhenBlank() {
+        SavedPlace place = savedPlace();   // wished = true 하나뿐
+
+        given(throwSessionService.detail(any(), any(), any()))
+                .willReturn(ThrowSessionDto.DetailResDto.builder().id(1L).userId(7L).build());
+        given(savedPlaceRepository.findByUserIdAndThrowSessionIdAndContentId(7L, 1L, "content-1"))
+                .willReturn(Optional.of(place));
+        given(savedPlaceRepository.save(any(SavedPlace.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        SavedPlaceDto.CreateReqDto param = createReqDto();
+        param.setVisited(null);
+        param.setWished(false);            // 하트 해제
+
+        savedPlaceService.create(param, 7L, DEVICE_ID);
+
+        assertThat(place.getDeleted()).isTrue();
+    }
+
+    @Test
+    @DisplayName("저장 - 해제했던 장소를 다시 표시하면 기존 행을 되살린다 (UNIQUE 충돌 방지)")
     void create_restoresSoftDeletedRow() {
         SavedPlace place = savedPlace();
         place.setDeleted(true);
 
         given(throwSessionService.detail(any(), any(), any()))
-                .willReturn(ThrowSessionDto.DetailResDto.builder().id(2L).userId(7L).build());
-        given(savedPlaceRepository.findByUserIdAndContentId(7L, "content-1")).willReturn(Optional.of(place));
+                .willReturn(ThrowSessionDto.DetailResDto.builder().id(1L).userId(7L).build());
+        given(savedPlaceRepository.findByUserIdAndThrowSessionIdAndContentId(7L, 1L, "content-1"))
+                .willReturn(Optional.of(place));
+        given(savedPlaceRepository.save(any(SavedPlace.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        DefaultDto.CreateResDto result = savedPlaceService.create(createReqDto(), 7L, DEVICE_ID);
+
+        assertThat(place.getDeleted()).isFalse();
+        assertThat(result.getId()).isEqualTo(100L);   // 새 행이 아니라 기존 행
+        verify(savedPlaceRepository).save(place);
+    }
+
+    @Test
+    @DisplayName("저장 - '여기 간다' 를 켜면 그 카테고리의 카드 판이 끝난다")
+    void create_endsRoundOnVisited() {
+        given(throwSessionService.detail(any(), any(), any()))
+                .willReturn(ThrowSessionDto.DetailResDto.builder().id(1L).userId(7L).build());
+        given(savedPlaceRepository.findByUserIdAndThrowSessionIdAndContentId(7L, 1L, "content-1"))
+                .willReturn(Optional.empty());
+        given(savedPlaceRepository.save(any(SavedPlace.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        savedPlaceService.create(createReqDto(), 7L, DEVICE_ID);
+
+        verify(cardService).endRound(1L, "ATTRACTION");
+    }
+
+    @Test
+    @DisplayName("저장 - 하트만 눌렀을 때는 카드 판을 끝내지 않는다")
+    void create_keepsRoundOnWishOnly() {
+        given(throwSessionService.detail(any(), any(), any()))
+                .willReturn(ThrowSessionDto.DetailResDto.builder().id(1L).userId(7L).build());
+        given(savedPlaceRepository.findByUserIdAndThrowSessionIdAndContentId(7L, 1L, "content-1"))
+                .willReturn(Optional.empty());
         given(savedPlaceRepository.save(any(SavedPlace.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         SavedPlaceDto.CreateReqDto param = createReqDto();
-        param.setThrowSessionId(2L);     // 다른 세션에서 다시 하트
+        param.setVisited(null);
+        param.setWished(true);
 
-        DefaultDto.CreateResDto result = savedPlaceService.create(param, 7L, DEVICE_ID);
+        savedPlaceService.create(param, 7L, DEVICE_ID);
 
-        assertThat(place.getDeleted()).isFalse();
-        assertThat(place.getThrowSessionId()).isEqualTo(2L);
-        assertThat(result.getId()).isEqualTo(100L);   // 새 행이 아니라 기존 행
-        verify(savedPlaceRepository).save(place);
+        verify(cardService, never()).endRound(any(), any());
+    }
+
+    @Test
+    @DisplayName("저장 - 바꿀 표시를 지정하지 않으면 InvalidRequestException")
+    void create_requiresFlag() {
+        SavedPlaceDto.CreateReqDto param = createReqDto();
+        param.setVisited(null);
+
+        assertThatThrownBy(() -> savedPlaceService.create(param, 7L, DEVICE_ID))
+                .isInstanceOf(InvalidRequestException.class);
+
+        verify(savedPlaceRepository, never()).save(any(SavedPlace.class));
     }
 
     @Test

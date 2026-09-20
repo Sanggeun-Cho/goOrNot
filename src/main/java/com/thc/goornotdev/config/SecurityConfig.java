@@ -73,20 +73,25 @@ public class SecurityConfig {
                         // 시군구 목록은 누구에게나 같은 공개 데이터다. 소유권도 개인정보도 없다.
                         // 지역 직접 검색은 로그인 전에도 되어야 하므로 열어둔다
                         .requestMatchers("/api/region/**").permitAll()
-                        // 정적 리소스는 인증 대상이 아니다
-                        .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
+                        // 정적 리소스는 인증 대상이 아니다.
+                        // manifest.webmanifest 는 루트에 있어서 위 와일드카드에 걸리지 않는다.
+                        // 빠뜨리면 anyRequest().authenticated() 에 걸려 401 이 나고,
+                        // 설치 배너가 조용히 안 뜬다(에러 화면이 없어 원인을 찾기 어렵다)
+                        .requestMatchers("/css/**", "/js/**", "/images/**",
+                                "/favicon.ico", "/manifest.webmanifest").permitAll()
                         // React SPA(Vite base=/app/). 번들과 index.html 자체는 인증 대상이 아니고,
                         // 화면 안에서 호출하는 API 는 기존 규칙(@PreAuthorize + anyRequest)이 그대로 막는다
                         .requestMatchers("/app/**").permitAll()
                         // 화면은 모두 열어두고, 로그인 필요 여부는 프론트 가드와 API 권한으로 판단한다
                         .requestMatchers("/", "/index", "/user/**").permitAll()
-                        // TourAPI 연동 점검용 임시 화면. HTML 만 열어주고 실제 호출(/api/dev/**)은
-                        // 아래 anyRequest().authenticated() 에 걸려 로그인해야 쓸 수 있다.
-                        // 화면 자체도 external.tourapi.dev-tools=true 일 때만 매핑된다 (제출 전 삭제 대상)
-                        .requestMatchers("/dev/**").permitAll()
+                        // [2026-09-19] 연동 점검용 임시 화면(/dev/**)은 제출을 앞두고 파일째 삭제했다.
+                        // 여기에 규칙을 남겨두면 나중에 같은 경로를 다른 용도로 만들었을 때
+                        // 인증 없이 열리는 문이 먼저 서 있게 된다. 규칙도 같이 지운다.
+
                         // Swagger 설정. UI 는 브라우저가 토큰 헤더 없이 요청하므로 문서 경로를 열어야 화면이 뜬다.
                         // 문서에 잡힌 API 의 실제 호출은 각 엔드포인트의 @PreAuthorize 가 그대로 막는다.
-                        // 배포 시 springdoc.api-docs.enabled=false 로 두면 이 경로 자체가 사라진다
+                        // ⚠ 배포용 yml 에는 springdoc.api-docs.enabled=false + swagger-ui.enabled=false 를
+                        //   반드시 명시한다. 그러면 이 경로 자체가 없어진다 (DEPLOY.md 참고)
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         // sendError 로 내려가는 응답은 컨테이너가 /error 로 포워딩한다.
                         // 여기를 막아두면 로그인 실패(401)나 잘못된 요청(400)이 전부 403 으로 덮인다

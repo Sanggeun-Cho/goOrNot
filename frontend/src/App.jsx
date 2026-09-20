@@ -8,6 +8,9 @@ import SignupPage from './routes/SignupPage.jsx';
 import MyTripsPage from './routes/MyTripsPage.jsx';
 import RegionSearchPage from './routes/RegionSearchPage.jsx';
 import CategoryPage from './routes/CategoryPage.jsx';
+import CardsPage from './routes/CardsPage.jsx';
+import MyPage from './routes/MyPage.jsx';
+import WishlistPage from './routes/WishlistPage.jsx';
 import PrivacyPage from './routes/PrivacyPage.jsx';
 
 /**
@@ -32,6 +35,11 @@ export default function App() {
 
                 {/* 세션 id 를 URL 에 둔다. 새로고침해도 어느 여행을 보는지 잃지 않는다 */}
                 <Route path="/category/:sessionId" element={<CategoryPage />} />
+
+                {/* 카드도 같은 이유로 세션·카테고리를 주소에 둔다.
+                    가드를 두르지 않는 것은 카테고리 화면과 같다 — 로그인 후 세션을
+                    계정에 붙여야 해서 화면 안에서 직접 막는다 */}
+                <Route path="/cards/:sessionId/:category" element={<CardsPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignupPage />} />
 
@@ -52,6 +60,26 @@ export default function App() {
                     element={
                         <RequireAuth>
                             <MyTripsPage />
+                        </RequireAuth>
+                    }
+                />
+
+                {/* 탭바 4번째 칸. 계정 · 찜한 곳 · 처리방침 · 로그아웃이 모이는 자리 */}
+                <Route
+                    path="/me"
+                    element={
+                        <RequireAuth>
+                            <MyPage />
+                        </RequireAuth>
+                    }
+                />
+
+                {/* 찜 목록. 마이페이지 안쪽이라 탭은 따로 주지 않는다 */}
+                <Route
+                    path="/wishlist"
+                    element={
+                        <RequireAuth>
+                            <WishlistPage />
                         </RequireAuth>
                     }
                 />

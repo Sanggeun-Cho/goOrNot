@@ -88,6 +88,17 @@ export default defineConfig({
                 rewrite: (path) => path.replace(/^\/app/, ''),
             },
 
+            // PWA 매니페스트도 static/ 원본을 본다 (index.html 주석 참고)
+            '/manifest.webmanifest': {
+                target: 'http://localhost:8081',
+                changeOrigin: false,
+            },
+            '/app/manifest.webmanifest': {
+                target: 'http://localhost:8081',
+                changeOrigin: false,
+                rewrite: (path) => path.replace(/^\/app/, ''),
+            },
+
             // 브라우저가 링크 없이도 자동으로 찾는 경로라 루트에도 하나 둔다
             '/favicon.ico': {
                 target: 'http://localhost:8081',

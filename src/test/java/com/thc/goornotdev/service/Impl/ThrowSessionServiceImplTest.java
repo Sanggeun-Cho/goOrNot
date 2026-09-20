@@ -374,7 +374,8 @@ class ThrowSessionServiceImplTest {
     void delete_cascadesToChildren() {
         ThrowSession session = anonymousSession();
         ThrowRound round = ThrowRound.of(1L, 1, "11", 37.5, 127.0, ThrowChoice.AGAIN);
-        SavedPlace place = SavedPlace.of(7L, "content-1", 1L, "관광지", "경복궁", "서울", 37.5, 127.0);
+        SavedPlace place = SavedPlace.of(7L, "content-1", 1L, "관광지", "경복궁", "서울", 37.5, 127.0,
+                true, false);
 
         given(throwSessionRepository.findById(1L)).willReturn(Optional.of(session));
         given(throwRoundRepository.findByThrowSessionIdAndDeletedFalse(1L)).willReturn(List.of(round));

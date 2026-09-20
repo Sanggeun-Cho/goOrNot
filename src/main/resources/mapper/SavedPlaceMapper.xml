@@ -34,6 +34,17 @@
             <if test="category != null and category != ''">
                 AND p.category = #{category}
             </if>
+
+            <!--
+                표시별 필터. 내 여행 상세는 visited, 찜 목록은 wished 로 같은 표를 나눠 본다.
+                null 이면 조건을 걸지 않아 두 표시가 섞인 전체 목록이 나온다.
+            -->
+            <if test="visited != null">
+                AND p.visited = #{visited}
+            </if>
+            <if test="wished != null">
+                AND p.wished = #{wished}
+            </if>
         </where>
     </sql>
 
@@ -47,6 +58,8 @@
                p.user_id,
                p.throw_session_id,
                p.content_id,
+               p.visited,
+               p.wished,
                p.category,
                p.place_name,
                p.address,

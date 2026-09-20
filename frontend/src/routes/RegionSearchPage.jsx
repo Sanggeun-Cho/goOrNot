@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import Icon from '../components/Icon.jsx';
 import { searchRegions, createSearchSession } from '../lib/trip.js';
 
 /**
@@ -92,16 +93,27 @@ export default function RegionSearchPage() {
 
     return (
         <>
+            {/*
+              [2026-09-19] 탭바에서 검색을 내리면서 뒤로가기 줄을 되살렸다.
+              이제 이 화면으로 들어오는 길은 메인의 작은 링크와 후보 소진 모달뿐이라
+              양쪽 다 "메인에서 왔다" 가 참이다. navigate(-1) 대신 경로로 보내는 이유는
+              CardsPage 와 같다 — 히스토리가 아니라 흐름상 돌아갈 곳으로 가야 한다.
+            */}
             <div className="topbar">
                 <button
                     type="button"
                     className="topbar__back"
-                    onClick={() => navigate(-1)}
-                    aria-label="뒤로"
+                    onClick={() => navigate('/')}
+                    aria-label="던지기로"
                 >
-                    ←
+                    <Icon name="back" size={20} />
                 </button>
+
                 <h1 className="topbar__title">지역 검색</h1>
+            </div>
+
+            <div className="page-head">
+                <p className="page-head__desc">갈 곳이 이미 정해졌다면 여기서 바로 고르세요.</p>
             </div>
 
             {/* 엔터로 제출해도 새로고침이 일어나지 않게 막는다. 실제 검색은 타이핑에 따라 자동으로 돈다 */}

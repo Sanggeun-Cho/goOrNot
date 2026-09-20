@@ -49,7 +49,27 @@ public enum ThrowCategory {
     }
 
     /**
-     * 요청 문자열 → enum.
+     * 요청 문자열 → enum. 모르는 값이면 null.
+     *
+     * 값이 틀린 게 오류인 자리(카드 요청)와 오류가 아닌 자리(저장된 문자열로 캐시를 비우는 등)가
+     * 둘 다 있어서, 판단은 부르는 쪽에 맡기고 여기서는 찾기만 한다.
+     */
+    public static ThrowCategory find(String name) {
+        if (name == null || name.isBlank()) {
+            return null;
+        }
+
+        for (ThrowCategory category : values()) {
+            if (category.name().equalsIgnoreCase(name.trim())) {
+                return category;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 요청 문자열 → enum. 모르는 값이면 400.
      *
      * valueOf 를 그대로 쓰면 오타 하나에 IllegalArgumentException 이 나고 500 으로 떨어진다.
      * 잘못된 입력은 클라이언트 잘못이므로 400 이 되도록 InvalidRequestException 으로 바꾼다.
@@ -59,12 +79,12 @@ public enum ThrowCategory {
             throw new InvalidRequestException("카테고리가 필요합니다.");
         }
 
-        for (ThrowCategory category : values()) {
-            if (category.name().equalsIgnoreCase(name.trim())) {
-                return category;
-            }
+        ThrowCategory found = find(name);
+
+        if (found == null) {
+            throw new InvalidRequestException("알 수 없는 카테고리입니다 : " + name);
         }
 
-        throw new InvalidRequestException("알 수 없는 카테고리입니다 : " + name);
+        return found;
     }
 }

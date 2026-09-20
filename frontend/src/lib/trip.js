@@ -144,3 +144,106 @@ export const THROW_CATEGORIES = [
     { value: 'STAY', label: '숙박' },
     { value: 'EVENT', label: '행사' },
 ];
+
+/** 서버가 준 카테고리 이름을 화면 라벨로. 모르는 값이면 그대로 돌려준다 */
+export function categoryLabel(value) {
+    return THROW_CATEGORIES.find((c) => c.value === value)?.label ?? value;
+}
+
+/* ── 카드 ────────────────────────────────────────────── */
+
+/**
+ * 카테고리의 카드 세트를 받는다.
+ *
+ * ⚠ 조회처럼 보이지만 POST 다. 첫 호출에서 서버가 TourAPI 를 불러 후보 풀을 만들고
+ *   카드를 깔기 때문에 서버 상태가 바뀌고, 리롤로 계속 달라지는 값이라 캐시되면 안 된다.
+ *
+ * 같은 카테고리를 다시 열면 풀 TTL(30분) 안에서는 같은 카드가 그대로 온다.
+ * 나갔다 들어와 리롤을 되살리는 우회를 막으려고 서버가 그렇게 잡아둔 것이다.
+ *
+ * @returns {Promise<{throwSessionId, regionCode, regionName, category, categoryLabel,
+ *                    poolSize, totalCount, expiresInSeconds, cards: Array}>}
+ */
+export function dealCards({ sessionId, category }) {
+    return api.post('/api/card/deal', {
+        throwSessionId: Number(sessionId),
+        category,
+    });
+}
+
+/**
+ * 카드 한 장을 다시 뽑는다. 슬롯당 1회.
+ *
+ * 응답은 바뀐 한 장이 아니라 세트 전체다. 화면이 부분 갱신을 조립하지 않아도 되고
+ * 프론트 상태가 서버와 어긋날 여지도 없앤다. 그대로 갈아끼우면 된다.
+ *
+ * 리롤 가능 여부는 서버가 카드마다 rerollable 로 내려준다. 프론트가 직접 세면
+ * 새로고침 한 번에 초기화되므로 그 값만 믿는다.
+ */
+export function rerollCard({ sessionId, category, slot }) {
+    return api.post('/api/card/reroll', {
+        throwSessionId: Number(sessionId),
+        category,
+        slot,
+    });
+}
+
+/* ── 표시(간다 · 하트) ───────────────────────────────── */
+
+/**
+ * 장소에 표시를 켜거나 끈다.
+ *
+ * 표시는 두 가지이고 서로 독립이다.
+ *   visited : "여기 간다" — 그 여행에서 실제로 간 곳. 내 여행의 본체
+ *   wished  : 하트(찜) — 지금 가진 않지만 마음에 든 곳
+ *
+ * ⚠ 바꾸려는 쪽만 보낸다. 하트만 누르면서 visited: false 를 같이 보내면
+ *   켜둔 "여기 간다" 가 꺼진다. 서버는 undefined 를 "그대로 두라" 로 읽는다.
+ *
+ * 저장/해제가 한 경로인 이유: (여행, 장소) 당 행이 하나뿐이라 서버가 알아서
+ * 있으면 갱신, 없으면 생성한다. 두 표시가 모두 꺼지면 그 행을 지운다.
+ *
+ * 장소 상세는 프론트가 그대로 실어 보낸다 — 서버는 이 시점에 TourAPI 를 다시 부르지 않는다.
+ *
+ * @returns {Promise<{id: number}>}
+ */
+export function markPlace({ sessionId, category, place, visited, wished }) {
+    return api.post('/api/saved-place', {
+        throwSessionId: Number(sessionId),
+        contentId: place.contentId,
+        visited,
+        wished,
+        category,
+        placeName: place.placeName,
+        address: place.address,
+        lat: place.lat,
+        lng: place.lng,
+    });
+}
+
+/**
+ * 내가 표시한 장소 목록.
+ *
+ * @param {object} [filter]
+ * @param {number} [filter.sessionId] 주면 그 여행 것만, 없으면 계정 전체
+ * @param {boolean} [filter.visited] true 면 "간 곳" 만
+ * @param {boolean} [filter.wished] true 면 하트만
+ */
+export function fetchSavedPlaces(filter = {}) {
+    return api.get('/api/saved-place/list', {
+        throwSessionId: filter.sessionId,
+        category: filter.category,
+        visited: filter.visited,
+        wished: filter.wished,
+    });
+}
+
+/**
+ * 내 여행 목록.
+ *
+ * 확정된 세션 = 지역이 정해진 여행이다. 던지는 중(IN_PROGRESS)인 세션은
+ * 아직 여행이라 부를 게 없으므로 status 로 걸러 받는다.
+ */
+export function fetchSessions(filter = {}) {
+    return api.get('/api/throw-session/list', { status: filter.status });
+}

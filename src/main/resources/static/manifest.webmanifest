@@ -1,0 +1,38 @@
+{
+  "name": "갈래 말래",
+  "short_name": "갈래 말래",
+  "description": "정하지 말고 던져서 떠나는 국내 여행. 안 가본 지역이 나옵니다.",
+  "lang": "ko",
+  "dir": "ltr",
+
+  "start_url": "/app",
+  "scope": "/app",
+  "id": "/app",
+
+  "display": "standalone",
+  "orientation": "portrait",
+
+  "background_color": "#F1EFE8",
+  "theme_color": "#F1EFE8",
+
+  "icons": [
+    {
+      "src": "/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

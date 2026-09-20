@@ -21,6 +21,9 @@
 
     /* 화면 하단에 고정되는 주요 행동 버튼의 높이 (본문 아래 여백 계산용) */
     --cta-height: 52px;
+
+    /* 하단 탭바 높이 (안전영역 제외). 본문·푸터·CTA 가 이 값만큼 비켜선다 */
+    --tabbar-height: 58px;
 }
 
 /* ── 앱 셸 ───────────────────────────────────────────── */
@@ -41,13 +44,6 @@
    flex 로 두면 텍스트 노드와 <span> 사이의 공백을 삼켜 "갈래말래" 가 되므로 그냥 인라인 텍스트로 둔다 */
 .app-header__brand { text-decoration: none; }
 
-.app-header__nav a {
-    display: inline-flex;
-    align-items: center;
-    color: inherit;
-    text-decoration: none;
-}
-
 /* 본문. common.css 가 max-width 480 + 가운데 정렬까지 잡아두었다.
    여기서는 하단 안전영역만 더해준다 */
 .app__main {
@@ -64,6 +60,73 @@
 
 .app-footer {
     padding-bottom: calc(var(--space-8) + var(--safe-bottom));
+}
+
+/* ── 하단 탭바 ───────────────────────────────────────── */
+/*
+ * 탭바가 있는 화면(.app--tabbed)에서는 아래에 깔린 것들이 전부 탭바 높이만큼 비켜선다.
+ * 안전영역은 탭바가 이미 흡수하므로 여기서 또 더하지 않는다 (두 번 더하면 빈칸이 생긴다).
+ */
+.app--tabbed .app__main {
+    padding-bottom: calc(var(--space-6) + var(--tabbar-height) + var(--safe-bottom));
+}
+
+.app--tabbed .app__main:has(.cta) {
+    padding-bottom: calc(var(--cta-height) + var(--space-8) + var(--tabbar-height) + var(--safe-bottom));
+}
+
+.app--tabbed .app-footer {
+    padding-bottom: calc(var(--space-6) + var(--tabbar-height) + var(--safe-bottom));
+}
+
+/* 고정 버튼은 탭바 위에 앉는다. 겹치면 둘 중 하나가 못 눌린다 */
+.app--tabbed .cta {
+    bottom: calc(var(--tabbar-height) + var(--safe-bottom));
+    padding-bottom: var(--space-3);
+}
+
+.tabbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* .cta(20) 위, .modal(50) 아래. 시트가 뜨면 탭바는 덮여야 한다 */
+    z-index: 30;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    height: calc(var(--tabbar-height) + var(--safe-bottom));
+    padding-bottom: var(--safe-bottom);
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+}
+
+@media (min-width: 720px) {
+    .tabbar {
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: 520px;
+    }
+}
+
+/* 한 칸 전체가 터치 대상이다. 폭 1/3 × 높이 58px 이라 40px 기준을 넉넉히 넘는다 */
+.tabbar__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: var(--color-text-subtle);
+    text-decoration: none;
+    transition: color .15s var(--ease);
+}
+
+/* 활성 표시는 색으로만 한다. 굵기나 크기를 바꾸면 탭을 옮길 때마다 글자가 들썩인다 */
+.tabbar__item.is-active { color: var(--color-primary); }
+
+.tabbar__label {
+    font-size: .68rem;
+    font-weight: 600;
+    letter-spacing: -.01em;
 }
 
 /* 데스크톱: 한 칼럼을 그대로 두되 본문에 면을 줘서 시선을 모은다 */
@@ -268,19 +331,26 @@
     gap: var(--space-3);
 }
 
+/*
+ * 타일 높이를 고정한다.
+ *
+ * 예전에는 개수 배지를 흐름 안에 넣었는데, 배지가 붙은 타일만 한 줄 더 높아져서
+ * 격자가 들쭉날쭉해졌다. 다녀온 곳이 생길수록 화면이 망가지는 셈이라
+ * 높이를 박고 배지는 모서리에 띄운다(absolute).
+ */
 .tile {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: var(--space-2);
-    padding: var(--space-5) var(--space-3);
+    height: 92px;
+    padding: 0 var(--space-3);
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     font-family: inherit;
-    font-size: .85rem;
-    color: var(--color-text-muted);
     cursor: pointer;
     transition: border-color .15s var(--ease), transform .15s var(--ease);
 }
@@ -291,6 +361,238 @@
 .tile:disabled {
     opacity: .5;
     cursor: default;
+}
+
+.tile__icon { color: var(--color-primary); }
+
+.tile__label {
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+/* 이 여행에서 그 종류로 간 곳 수. 흐름에서 빠져 있어 레이아웃을 흔들지 않는다 */
+.tile__count {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: var(--radius-full);
+    background: var(--color-primary);
+    font-size: .68rem;
+    font-weight: 700;
+    color: var(--color-surface);
+}
+
+/* ── 간 곳 (여행 상세) ───────────────────────────────── */
+.visited {
+    margin-top: var(--space-6);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--color-border);
+}
+
+.visited__title {
+    font-size: .9rem;
+    font-weight: 700;
+}
+
+.visited__group { margin-top: var(--space-4); }
+
+.visited__label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: .76rem;
+    font-weight: 600;
+    color: var(--color-text-subtle);
+}
+
+.visited__list {
+    margin-top: var(--space-2);
+    padding: 0;
+    list-style: none;
+    font-size: .88rem;
+    color: var(--color-text-muted);
+}
+
+/* 이름 한 줄 + 되돌리기 버튼. 버튼이 40px 라 줄 높이도 그만큼 잡힌다 */
+.visited__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.visited__item:last-child { border-bottom: 0; }
+
+.visited__name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── 장소 카드 (화면 4) ──────────────────────────────── */
+/*
+ * 가로형 카드다. 사진을 크게 쓰는 세로형이면 한 장이 220px 를 넘어 세 장이
+ * 한 화면에 안 들어오고, 그러면 "세 장 중에 고른다" 는 느낌 자체가 사라진다.
+ * 사진을 썸네일로 줄여 한 장을 ~110px 로 눌러 세 장을 스크롤 없이 보여준다.
+ */
+.place-card {
+    position: relative;
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+/*
+ * 카드 전체가 "여기 간다" 버튼이다.
+ * 카드를 <button> 으로 감싸면 안쪽 버튼(리롤·하트)이 중첩돼 HTML 이 깨지므로,
+ * 투명한 버튼을 카드 넓이만큼 깔고 내용은 그 위에 얹는다.
+ */
+.place-card__pick {
+    position: absolute;
+    inset: 0;
+    padding: 0;
+    background: none;
+    border: 0;
+    border-radius: inherit;
+    cursor: pointer;
+}
+
+/* 사진·글은 클릭을 가로채지 않고 아래 버튼으로 흘려보낸다. 액션만 다시 받아낸다 */
+.place-card__thumb,
+.place-card__body { position: relative; pointer-events: none; }
+.place-card__actions { position: relative; pointer-events: auto; }
+
+.place-card:hover { border-color: var(--color-border-strong); }
+
+.place-card__thumb {
+    flex: none;
+    width: 88px;
+    height: 88px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    /* 사진이 늦게 뜰 때 흰 구멍이 생기지 않도록 바탕을 깔아둔다 */
+    background: var(--color-primary-soft);
+}
+
+/*
+ * 대표이미지 저작권 Type3(출처 표시 + 변경 금지)는 잘라내지 않고 원본 비율로 둔다.
+ * 남는 자리는 바탕색으로 채운다.
+ */
+.place-card__thumb.is-contain { object-fit: contain; }
+
+.place-card__thumb--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .72rem;
+    color: var(--color-primary);
+}
+
+/* 가로 폭이 남지 않는 칸이라 min-width: 0 이 없으면 긴 장소명이 썸네일을 밀어낸다 */
+.place-card__body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.place-card__name {
+    font-size: .95rem;
+    font-weight: 700;
+    letter-spacing: -.01em;
+    /* 두 줄까지만 보여주고 자른다. 카드 높이가 제목 길이에 따라 달라지면 안 된다 */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.place-card__address {
+    margin-top: 2px;
+    font-size: .78rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 거리·출처처럼 부차적인 정보 */
+.place-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
+    margin-top: 2px;
+    font-size: .72rem;
+    color: var(--color-text-subtle);
+}
+
+/* 지난 판에 이미 다녀온 곳이 새 판에 또 뽑혔을 때 붙는 표시 */
+.place-card__again {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+/* 버튼은 오른쪽에 모으고, 다시뽑기만 왼쪽에 떼어놓는다(성격이 다른 행동이라) */
+.place-card__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: auto;
+    padding-top: var(--space-2);
+}
+
+.place-card__actions > :first-child { margin-right: auto; }
+
+/* ── 아이콘 버튼 ─────────────────────────────────────── */
+/* 손가락으로 누르는 버튼이라 40px 아래로 내려가지 않게 한다 */
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    font-family: inherit;
+    font-size: 1rem;
+    line-height: 1;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    cursor: pointer;
+    transition: border-color .15s var(--ease), color .15s var(--ease);
+}
+
+.icon-btn:hover:not(:disabled) {
+    border-color: var(--color-border-strong);
+    color: var(--color-text);
+}
+
+.icon-btn:disabled {
+    opacity: .4;
+    cursor: default;
+}
+
+/* 저장된 상태만 색으로 구분한다. 크기를 바꾸면 누를 때마다 줄이 들썩인다 */
+.icon-btn--heart.is-on {
+    border-color: var(--color-danger);
+    color: var(--color-danger);
 }
 
 /* ── 목록 행 (화면 6 · 내 여행) ──────────────────────── */
@@ -350,6 +652,100 @@
     font-weight: 600;
     color: var(--color-primary);
 }
+
+/* 줄 끝의 ">". 누를 수 있다는 신호일 뿐이라 흐리게 둔다 */
+.row__arrow {
+    flex: none;
+    color: var(--color-text-subtle);
+}
+
+/* ── 숫자 두 칸 (마이페이지) ─────────────────────────── */
+/* 값이 늦게 와도 칸 수·높이가 그대로라 화면이 흔들리지 않는다 */
+.stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+    margin-bottom: var(--space-6);
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: var(--space-5) var(--space-3);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+.stat__value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -.03em;
+    color: var(--color-text);
+}
+
+.stat__label {
+    font-size: .76rem;
+    color: var(--color-text-subtle);
+}
+
+/* ── 설정 메뉴 (마이페이지) ──────────────────────────── */
+/*
+ * 한 덩어리 안에 줄을 쌓는 흔한 설정 목록 형태다.
+ * 줄마다 카드를 띄우면(.row) 목적지가 서로 다른 것처럼 보이는데,
+ * 여기 있는 건 전부 "내 계정 주변" 이라 한 상자에 묶는 편이 맞다.
+ */
+.menu {
+    display: flex;
+    flex-direction: column;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.menu__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    /* 손가락으로 누르는 줄이라 40px 아래로 내려가지 않게 한다 */
+    min-height: 52px;
+    padding: 0 var(--space-4);
+    background: none;
+    border: 0;
+    border-bottom: 1px solid var(--color-border);
+    font-family: inherit;
+    font-size: .9rem;
+    color: var(--color-text);
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background .15s var(--ease);
+}
+
+.menu__item:last-child { border-bottom: 0; }
+.menu__item:hover { background: var(--color-surface-sunken); }
+
+.menu__item:disabled {
+    opacity: .5;
+    cursor: default;
+}
+
+/* 앞 아이콘은 글자보다 한 단계 흐리게. 라벨이 주인공이다 */
+.menu__item svg {
+    flex: none;
+    color: var(--color-text-muted);
+}
+
+.menu__label {
+    flex: 1;
+    min-width: 0;
+}
+
+.menu__item .menu__arrow { color: var(--color-text-subtle); }
 
 /* ── 빈 상태 ─────────────────────────────────────────── */
 .empty {
@@ -526,6 +922,16 @@
     margin-top: var(--space-2);
     font-size: .85rem;
     color: var(--color-text-muted);
+}
+
+/* 확정의 결과를 한 줄로 미리 알려준다 ("이러면 저렇게 됩니다") */
+.modal__note {
+    margin-top: var(--space-5);
+    padding: var(--space-3);
+    border-radius: var(--radius-sm);
+    background: var(--color-primary-soft);
+    font-size: .78rem;
+    color: var(--color-primary);
 }
 
 /*
