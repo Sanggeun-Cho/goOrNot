@@ -70,8 +70,14 @@ export default function MyPage() {
         <>
             <div className="page-head">
                 <h1 className="page-head__title">마이페이지</h1>
-                {/* 아직 안 왔을 때 자리만 잡아둔다. 글자가 뒤늦게 끼어들면 아래가 밀린다 */}
-                <p className="page-head__desc">{me ? `${me.username} 님` : ' '}</p>
+                {/*
+                  아직 안 왔을 때 자리만 잡아둔다. 글자가 뒤늦게 끼어들면 아래가 밀린다.
+
+                  ⚠ username(로그인 ID)이 아니라 name(이름)이다. 화면에 ID 를 띄우면
+                    어깨너머나 캡처로 계정 절반이 새어나간다. 가입 때 이름을 따로 받는
+                    이유가 이것이다.
+                */}
+                <p className="page-head__desc">{me ? `${me.name} 님` : ' '}</p>
             </div>
 
             {error && (

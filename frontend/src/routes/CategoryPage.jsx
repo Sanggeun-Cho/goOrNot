@@ -40,6 +40,7 @@ export default function CategoryPage() {
     const [visited, setVisited] = useState([]);
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(null);
+    const [busyHeart, setBusyHeart] = useState(null);
 
     useEffect(() => {
         // 로그인 판정 전이거나 비로그인이면 부르지 않는다. 어차피 401 이 돌아온다
@@ -47,7 +48,11 @@ export default function CategoryPage() {
 
         let alive = true;
 
-        // 간 곳은 이 여행 것만, 하트는 빼고 받는다 (찜은 마이페이지에서 본다)
+        /*
+         * 이 여행에서 visited 가 켜진 행만 받는다. wished 로는 거르지 않는다 —
+         * 응답의 wished 값이 아래 하트 버튼의 초기 상태가 되기 때문이다.
+         * (찜만 해둔 곳의 목록은 여기가 아니라 마이페이지에서 본다)
+         */
         Promise.all([fetchSession(sessionId), fetchSavedPlaces({ sessionId, visited: true })])
             .then(([found, places]) => {
                 if (!alive) return;
@@ -92,6 +97,43 @@ export default function CategoryPage() {
             setError(caught.message || '기록을 되돌리지 못했습니다.');
         } finally {
             setBusy(null);
+        }
+    }
+
+    /**
+     * 간 곳에 하트를 켜고 끈다.
+     *
+     * 왜 여기에도 두는가: 카드 화면은 한 곳을 고르면 닫히고 다시 열리지 않는다.
+     * 그래서 "갔다 와서 마음에 들었다" 를 남길 자리가 없었다. 간 곳 목록이
+     * 그 장소를 다시 만나는 유일한 화면이라 하트를 여기에 붙인다.
+     *
+     * 간 곳이면서 찜인 상태는 모순이 아니다 — "갔는데 또 가고 싶다" 다.
+     * SavedPlace 는 (여행, 장소)당 행 하나에 visited / wished 를 따로 켠다.
+     *
+     * ⚠ wished 만 보낸다. visited 를 같이 실어 보내면 화면이 들고 있던 낡은 값이
+     *   서버 값을 덮어쓴다. 서버는 undefined 를 "그대로 두라" 로 읽는다.
+     */
+    async function toggleWish(place) {
+        const next = !place.wished;
+
+        setBusyHeart(place.id);
+        setError('');
+
+        try {
+            await markPlace({
+                sessionId,
+                category: place.category,
+                place,
+                wished: next,
+            });
+
+            setVisited((prev) =>
+                prev.map((row) => (row.id === place.id ? { ...row, wished: next } : row)),
+            );
+        } catch (caught) {
+            setError(caught.message || '찜하지 못했습니다.');
+        } finally {
+            setBusyHeart(null);
         }
     }
 
@@ -204,6 +246,18 @@ export default function CategoryPage() {
                                             {byCategory[category.value].map((place) => (
                                                 <li key={place.id} className="visited__item">
                                                     <span className="visited__name">{place.placeName}</span>
+
+                                                    <button
+                                                        type="button"
+                                                        className={`icon-btn icon-btn--heart${place.wished ? ' is-on' : ''}`}
+                                                        onClick={() => toggleWish(place)}
+                                                        disabled={busyHeart === place.id}
+                                                        aria-pressed={place.wished}
+                                                        aria-label={`${place.placeName} ${place.wished ? '찜 해제' : '찜하기'}`}
+                                                        title={place.wished ? '찜 해제' : '찜하기'}
+                                                    >
+                                                        <Icon name="heart" size={16} filled={place.wished} />
+                                                    </button>
 
                                                     <button
                                                         type="button"

@@ -223,9 +223,16 @@ function passwordProblem(password, username) {
     if (password.length < PASSWORD_MIN) return `비밀번호는 ${PASSWORD_MIN}자 이상이어야 해요.`;
     if (password.length > PASSWORD_MAX) return `비밀번호는 ${PASSWORD_MAX}자까지 쓸 수 있어요.`;
 
-    // 아이디가 그대로 들어간 비밀번호는 아이디만 알면 몇 번 만에 맞힐 수 있다
-    if (username && password.toLowerCase().includes(username.toLowerCase())) {
-        return '비밀번호에 아이디를 그대로 넣지 말아 주세요.';
+    /*
+     * 아이디와 똑같은 비밀번호는 아이디만 알면 한 번에 뚫린다.
+     *
+     * [2026-09-20] "포함" 에서 "동일" 로 좁혔다. 공모전 주최측이 심사용 계정을
+     * ID `openapi` / PW `2026openapi!` 로 지정했는데(형식 필수·개인 계정 제출 불가),
+     * 이게 정확히 "아이디를 포함한 비밀번호" 라 원래 규칙으로는 가입 자체가 막혔다.
+     * 규칙을 다 걷어내는 대신 최악의 경우만 남긴다.
+     */
+    if (username && password.toLowerCase() === username.toLowerCase()) {
+        return '아이디와 똑같은 비밀번호는 쓸 수 없어요.';
     }
 
     // 숫자만 / 영문만이면 경우의 수가 급격히 줄어든다
