@@ -58,3 +58,6 @@ src/main/resources/static/app/
 # 원래 './.claude' 로 적혀 있었으나 git 은 './' 로 시작하는 패턴을 무시한다.
 # 그래서 실제로는 아무것도 걸러내지 못하고 있었다 (git check-ignore 로 확인)
 .claude/
+
+# 로컬 전용 구조 설명 문서 (아키텍처 시각화). 저장소에는 README.md 로 요약만 둔다
+/docs/architecture.html
