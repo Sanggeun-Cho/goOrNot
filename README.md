@@ -60,18 +60,18 @@
 ## 3. 사용 흐름
 
 ```mermaid
-flowchart LR
-    A[던지기 횟수 선택<br/>1 · 3 · 5회] --> B[핀 던지기<br/>서버 가중치 추첨]
-    B --> C{갈래 / 말래}
+flowchart TB
+    A["던지기 횟수 선택<br/>1 · 3 · 5회"] --> B["핀 던지기<br/>서버 가중치 추첨"]
+    B --> C{"갈래 / 말래"}
     C -- 말래 --> B
-    C -- 갈래 --> D[지역 확정]
-    D --> E[로그인<br/>여행을 계정에 연결]
-    E --> F[카테고리 선택]
-    F --> G[카드 3장<br/>슬롯별 리롤 1회]
+    C -- 갈래 --> D["지역 확정"]
+    D --> E["로그인<br/>여행을 계정에 연결"]
+    E --> F["카테고리 선택"]
+    S["지역 직접 검색"] -. 보조 경로 .-> F
+    F --> G["카드 3장<br/>슬롯별 리롤 1회"]
     G -- 하트 --> G
-    G -- 여기로 갈래 --> H[간 곳 기록<br/>판 종료]
+    G -- 여기로 갈래 --> H["간 곳 기록<br/>판 종료"]
     H --> F
-    E -. 보조 경로 .-> S[지역 직접 검색] --> F
 ```
 
 - 로그인 없이 쓸 수 있는 구간: 던지기 → 지역 확정
@@ -83,35 +83,35 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    subgraph Client[브라우저 · PWA]
-        R[React 19 SPA<br/>/app/**]
-        KM[카카오맵 JS SDK]
+    subgraph Client["브라우저 · PWA"]
+        R["React 19 SPA<br/>/app/**"]
+        KM["카카오맵 JS SDK"]
     end
 
-    subgraph Server[단일 서버]
-        P[리버스 프록시<br/>HTTPS]
-        subgraph Boot[Spring Boot 4 · 단일 jar]
-            F[Security Filter Chain<br/>JWT 인가 · 로그인 필터]
-            C[Controller<br/>@PreAuthorize]
-            S[Service<br/>인터페이스 + Impl]
-            REPO[JPA Repository<br/>쓰기]
-            MAP[MyBatis Mapper<br/>조회]
-            MEM[(ExpiringStore<br/>추첨 티켓 · 카드 풀)]
-            CAT[(RegionCatalog<br/>regions.json)]
-            EXT[TourApiClient]
+    subgraph Server["단일 서버"]
+        P["리버스 프록시<br/>HTTPS"]
+        subgraph Boot["Spring Boot 4 · 단일 jar"]
+            F["Security Filter Chain<br/>JWT 인가 · 로그인 필터"]
+            CT["Controller<br/>PreAuthorize 권한 검사"]
+            SV["Service<br/>인터페이스 + Impl"]
+            REPO["JPA Repository<br/>쓰기"]
+            MAP["MyBatis Mapper<br/>조회"]
+            MEM[("ExpiringStore<br/>추첨 티켓 · 카드 풀")]
+            CAT[("RegionCatalog<br/>regions.json")]
+            EXT["TourApiClient"]
         end
-        DB[(MySQL)]
+        DB[("MySQL")]
     end
 
-    TOUR[TourAPI 4.0<br/>locationBasedList2]
-    KAKAO[카카오맵 서버]
+    TOUR["TourAPI 4.0<br/>locationBasedList2"]
+    KAKAO["카카오맵 서버"]
 
-    R --> P --> F --> C --> S
-    S --> REPO --> DB
-    S --> MAP --> DB
-    S --> MEM
-    S --> CAT
-    S --> EXT --> TOUR
+    R --> P --> F --> CT --> SV
+    SV --> REPO --> DB
+    SV --> MAP --> DB
+    SV --> MEM
+    SV --> CAT
+    SV --> EXT --> TOUR
     KM --> KAKAO
 ```
 
